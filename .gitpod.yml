@@ -1,4 +1,10 @@
+image:
+  file: .gitpod.Dockerfile
 
 vscode:
   extensions:
     - golang.go
+
+tasks:
+  - init: go mod verify
+    command: go build
