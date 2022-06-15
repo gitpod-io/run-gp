@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gitpod-io/gitpod/rungp/pkg/console"
-	"github.com/gitpod-io/gitpod/rungp/pkg/runtime"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime"
 	"github.com/spf13/cobra"
 )
 

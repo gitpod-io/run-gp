@@ -14,8 +14,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
-	"github.com/gitpod-io/gitpod/rungp/pkg/builder"
-	"github.com/gitpod-io/gitpod/rungp/pkg/runtime"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/builder"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime"
 )
 
 // rootCmd represents the base command when called without any subcommands

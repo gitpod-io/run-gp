@@ -5,7 +5,7 @@
 package main
 
 import (
-	"github.com/gitpod-io/gitpod/rungp/cmd"
+	"github.com/gitpod-io/gitpod/run-gp/cmd"
 )
 
 func main() {

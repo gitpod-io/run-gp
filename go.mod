@@ -1,4 +1,4 @@
-module github.com/gitpod-io/gitpod/rungp
+module github.com/gitpod-io/gitpod/run-gp
 
 go 1.18
 
