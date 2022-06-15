@@ -33,7 +33,7 @@ func (db DockerBuilder) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.
 	FROM $WEBIDE AS webide
 	FROM --platform=linux/amd64 $OPENVSCODE AS openvscode
 
-	$BASEIMAGE
+	FROM $BASEIMAGE
 
 	COPY --from=supervisor /.supervisor /.supervisor/
 	COPY --from=openvscode --chown=33333:33333 /home/.openvscode-server /ide/
