@@ -18,7 +18,7 @@ type Log interface {
 	Log() Logs
 
 	StartPhase(name, description string) Phase
-	FixedMessagef(format string, args ...interface{})
+	Infof(format string, args ...interface{})
 	Warnf(format string, args ...interface{})
 }
 
@@ -77,7 +77,7 @@ func (PTermLog) StartPhase(name, description string) Phase {
 	return ptermPhase{Spinner: s}
 }
 
-func (PTermLog) FixedMessagef(format string, args ...interface{}) {
+func (PTermLog) Infof(format string, args ...interface{}) {
 	fmt.Printf(format, args...)
 }
 
@@ -117,7 +117,7 @@ func NewConsoleLog(w io.Writer) ConsoleLog {
 var _ Log = ConsoleLog{}
 
 // FixedMessage implements Log
-func (c ConsoleLog) FixedMessagef(format string, args ...interface{}) {
+func (c ConsoleLog) Infof(format string, args ...interface{}) {
 	fmt.Fprintf(c.w, format, args...)
 }
 
@@ -127,7 +127,7 @@ func (c ConsoleLog) Log() Logs {
 }
 
 func (c ConsoleLog) Warnf(format string, args ...interface{}) {
-	c.FixedMessagef("[WARN] "+format, args...)
+	c.Infof("[WARN] "+format, args...)
 }
 
 // StartPhase implements Log

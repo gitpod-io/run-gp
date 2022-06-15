@@ -28,18 +28,6 @@ func (db DockerBuilder) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.
 	}
 	defer os.RemoveAll(tmpdir)
 
-	// df := `
-	// FROM $SUPERVISOR AS supervisor
-	// FROM $WEBIDE AS webide
-
-	// $BASEIMAGE
-
-	// COPY --from=supervisor /.supervisor /.supervisor/
-	// COPY --from=webide /ide /ide/
-
-	// USER root
-	// RUN sed -e 's#_supervisor/frontend/main.js#_supervisor/frontend/rungp.js#g' /ide/out/vs/gitpod/browser/workbench/workbench.html > /tmp/d && mv /tmp/d /ide/out/vs/gitpod/browser/workbench/workbench.html
-	// `
 	df := `
 	FROM $SUPERVISOR AS supervisor
 	FROM $WEBIDE AS webide

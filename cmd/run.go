@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -70,7 +69,7 @@ var runCmd = &cobra.Command{
 		if fc, err := ioutil.ReadFile(publicSSHKeyFN); err == nil {
 			publicSSHKey = string(fc)
 		} else if rootOpts.Verbose {
-			return fmt.Errorf("cannot read public SSH key from %s: %v", publicSSHKeyFN, err)
+			log.Warnf("cannot read public SSH key from %s: %v", publicSSHKeyFN, err)
 		}
 
 		shutdown := make(chan struct{})
@@ -94,7 +93,7 @@ var runCmd = &cobra.Command{
 		select {
 		case <-sigChan:
 			// give things a change to shut down
-			log.FixedMessagef("Received SIGTERM, shutting down")
+			log.Infof("\nReceived SIGTERM, shutting down")
 			cancel()
 			time.Sleep(1 * time.Second)
 		case <-shutdown:
