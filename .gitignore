@@ -16,3 +16,4 @@
 run-gp
 
 dist/
+pkg/builder/assets/assets.tar.gz
