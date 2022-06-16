@@ -16,6 +16,7 @@ import (
 
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/update"
 	"github.com/spf13/cobra"
 )
 
@@ -25,8 +26,17 @@ var runCmd = &cobra.Command{
 	Short: "Starts a workspace",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log := console.PTermLog{
-			Verbose: rootOpts.Verbose,
+		log := console.Default
+
+		printBanner()
+
+		if rootOpts.cfg.AutoUpdate {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			err := update.Update(ctx, version, update.NewGitHubReleaseDiscovery(ctx), rootOpts.cfg.Filename)
+			if err != nil {
+				log.Warnf("failed to auto-update: %v", err)
+			}
 		}
 
 		cfg, err := getGitpodYaml()

@@ -19,9 +19,11 @@ import (
 type Config struct {
 	Filename string `yaml:"-"`
 
+	AutoUpdate bool `yaml:"autoUpdate"`
+
 	Telemetry struct {
-		Disabled bool   `json:"disabled,omitempty"`
-		Identity string `json:"identity,omitempty"`
+		Disabled bool   `yaml:"disabled,omitempty"`
+		Identity string `yaml:"identity,omitempty"`
 	} `yaml:"telemetry,omitempty"`
 }
 
