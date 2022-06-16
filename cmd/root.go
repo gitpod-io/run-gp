@@ -39,16 +39,14 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		console.Init(rootOpts.Verbose)
 
-		if isatty.IsTerminal(os.Stdout.Fd()) {
-			printBanner()
-		}
-
 		cfg, err := config.ReadInConfig()
 		if err != nil {
 			console.Default.Warnf("%v", err)
 		}
 		if cfg == nil {
-			cfg = &config.Config{}
+			cfg = &config.Config{
+				AutoUpdate: true,
+			}
 		}
 
 		telemetry.Init(cfg.Telemetry.Disabled || rootOpts.DisableTelemetry, cfg.Telemetry.Identity)
@@ -61,6 +59,8 @@ var rootCmd = &cobra.Command{
 
 			console.Default.Debugf("produced new telemetry identity: %s", cfg.Telemetry.Identity)
 		}
+
+		rootOpts.cfg = cfg
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		telemetry.Close()
@@ -68,6 +68,9 @@ var rootCmd = &cobra.Command{
 }
 
 func printBanner() {
+	if !isatty.IsTerminal(os.Stdout.Fd()) {
+		return
+	}
 	var res string
 
 	lines := strings.Split(banner, "\n")
@@ -88,6 +91,8 @@ var rootOpts struct {
 	Verbose          bool
 	DisableTelemetry bool
 	Runtime          string
+
+	cfg *config.Config
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
