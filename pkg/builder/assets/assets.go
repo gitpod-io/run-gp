@@ -47,9 +47,7 @@ func untar(r io.Reader, dir string) (err error) {
 	madeDir := map[string]bool{}
 	defer func() {
 		td := time.Since(t0)
-		if err == nil {
-			log.Printf("extracted tarball into %s: %d files, %d dirs (%v)", dir, nFiles, len(madeDir), td)
-		} else {
+		if err != nil {
 			log.Printf("error extracting tarball into %s after %d files, %d dirs, %v: %v", dir, nFiles, len(madeDir), td, err)
 		}
 	}()
