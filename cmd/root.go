@@ -1,7 +1,3 @@
-// Copyright (c) 2020 Gitpod GmbH. All rights reserved.
-// Licensed under the GNU Affero General Public License (AGPL).
-// See License-AGPL.txt in the project root for license information.
-
 package cmd
 
 import (
@@ -11,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
@@ -34,9 +31,9 @@ var rootOpts struct {
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cmd, _, err := rootCmd.Find(os.Args[1:])
-
-	if err != nil || cmd.Args == nil {
-		args := append([]string{"run"}, os.Args[1:]...)
+	// default cmd if no cmd is given
+	if err == nil && cmd.Use == rootCmd.Use && cmd.Flags().Parse(os.Args[1:]) != pflag.ErrHelp {
+		args := append([]string{runCmd.Use}, os.Args[1:]...)
 		rootCmd.SetArgs(args)
 	}
 
