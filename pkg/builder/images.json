@@ -1,5 +1,0 @@
-{
-  "supervisor": "eu.gcr.io/gitpod-core-dev/build/supervisor:commit-541d124134d6e1595acee9f5204c5176e15899d9",
-  "gitpod-code": "eu.gcr.io/gitpod-core-dev/build/ide/code:commit-6b387debb57d4504bf85764fdb573afaeab03473",
-  "open-vscode": "docker.io/gitpod/openvscode-server:latest@sha256:29dad24bb1a707d2cc269a8df4fb47e8ff29d07f5af40a20a4010d0477cc32ff"
-}

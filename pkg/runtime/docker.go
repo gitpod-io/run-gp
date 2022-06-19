@@ -17,14 +17,99 @@ import (
 	"time"
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime/assets"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/telemetry"
 )
 
-type DockerRuntime struct {
+type Docker struct {
 	Workdir string
 }
 
-func (dr DockerRuntime) StartWorkspace(ctx context.Context, workspaceImage string, cfg *gitpod.GitpodConfig, opts StartOpts) error {
+// BuildImage builds the workspace image
+func (dr Docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error) {
+	tmpdir, err := os.MkdirTemp("", "rungp-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpdir)
+
+	var (
+		assetsHeader string
+		assetsCmds   string
+	)
+	if assets.IsEmbedded() {
+		err := assets.Extract(tmpdir)
+		if err != nil {
+			return err
+		}
+		assetsCmds = `
+		COPY supervisor/ /.supervisor/
+		COPY ide/ /ide/
+		`
+	} else {
+		return fmt.Errorf("missing assets - please make sure you ran go:generate before")
+	}
+
+	var baseimage string
+	switch img := cfg.Image.(type) {
+	case nil:
+		baseimage = "FROM gitpod/workspace-full:latest"
+	case string:
+		baseimage = "FROM " + img
+	case map[string]interface{}:
+		fc, err := json.Marshal(img)
+		if err != nil {
+			return err
+		}
+		var obj gitpod.Image_object
+		err = json.Unmarshal(fc, &obj)
+		if err != nil {
+			return err
+		}
+		fc, err = ioutil.ReadFile(filepath.Join(dr.Workdir, obj.Context, obj.File))
+		if err != nil {
+			// TODO(cw): make error actionable
+			return err
+		}
+		baseimage = "\n" + string(fc) + "\n"
+	default:
+		return fmt.Errorf("unsupported image: %v", img)
+	}
+
+	df := `
+	` + assetsHeader + `
+	` + baseimage + `
+	` + assetsCmds + `
+
+	USER root
+	RUN rm /usr/bin/gp-vncsession || true
+	RUN mkdir -p /workspace && \
+		chown -R 33333:33333 /workspace
+	`
+
+	fmt.Fprintf(logs, "\nDockerfile:%s\n", df)
+
+	err = ioutil.WriteFile(filepath.Join(tmpdir, "Dockerfile"), []byte(df), 0644)
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("docker", "build", "-t", ref, "--pull=false", ".")
+	cmd.Dir = tmpdir
+	cmd.Stdout = logs
+	cmd.Stderr = logs
+	err = cmd.Run()
+	if _, ok := err.(*exec.ExitError); ok {
+		return fmt.Errorf("workspace image build failed")
+	} else if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Startworkspace actually runs a workspace using a previously built image
+func (dr Docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg *gitpod.GitpodConfig, opts StartOpts) error {
 	var logs io.Writer
 	if opts.Logs != nil {
 		logs = opts.Logs

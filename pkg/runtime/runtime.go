@@ -11,8 +11,17 @@ import (
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
 )
 
+type RuntimeBuilder interface {
+	Runtime
+	Builder
+}
+
 type Runtime interface {
 	StartWorkspace(ctx context.Context, imageRef string, cfg *gitpod.GitpodConfig, opts StartOpts) error
+}
+
+type Builder interface {
+	BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error)
 }
 
 type StartOpts struct {
