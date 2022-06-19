@@ -40,7 +40,7 @@ var runCmd = &cobra.Command{
 
 		fmt.Println(banner)
 
-		cfg, err := getConfig()
+		cfg, err := getGitpodYaml()
 		if err != nil {
 			return err
 		}
@@ -56,7 +56,7 @@ var runCmd = &cobra.Command{
 
 		buildingPhase := log.StartPhase("[building]", "workspace image")
 		ref := filepath.Join("local/workspace-image:latest")
-		bldLog := log.Log()
+		bldLog := log.Writer()
 		err = bb.BuildImage(bldLog, ref, cfg)
 		if err != nil {
 			buildingPhase.Failure(err.Error())

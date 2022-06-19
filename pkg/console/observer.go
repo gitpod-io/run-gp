@@ -79,6 +79,6 @@ func Observe(log Log, workspaceFolder string) Logs {
 		}
 	}()
 
-	logs := log.Log()
+	logs := log.Writer()
 	return noopWriteCloser{io.MultiWriter(rw, logs)}
 }

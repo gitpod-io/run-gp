@@ -13,6 +13,8 @@ builds:
       - linux
       - windows
       - darwin
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser -X pkg/telemetry.segmentKey={{ .Env.SEGMENT_KEY }}
 archives:
   - replacements:
       darwin: Darwin
