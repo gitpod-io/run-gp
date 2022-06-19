@@ -6,5 +6,5 @@ vscode:
     - golang.go
 
 tasks:
-  - init: go mod verify
+  - init: go generate -v ./... && go mod verify
     command: go build
