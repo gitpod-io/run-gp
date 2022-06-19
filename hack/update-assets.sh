@@ -4,9 +4,9 @@ tmpdir="$(mktemp -d)"
 bldname="assets$(date +%s)"
 base="$(dirname "$0")/.."
 
-SUPERVISOR="$(jq -r '.supervisor' "$base/pkg/builder/images.json")"
-WEBIDE="$(jq -r '."gitpod-code"' "$base/pkg/builder/images.json")"
-OPENVSCODE="$(jq -r '."open-vscode"' "$base/pkg/builder/images.json")"
+SUPERVISOR="$(jq -r '.supervisor' "$base/pkg/runtime/assets/images.json")"
+WEBIDE="$(jq -r '."gitpod-code"' "$base/pkg/runtime/assets/images.json")"
+OPENVSCODE="$(jq -r '."open-vscode"' "$base/pkg/runtime/assets/images.json")"
 
 cat <<EOF > "$tmpdir/Dockerfile"
 FROM $SUPERVISOR AS supervisor
@@ -33,4 +33,4 @@ COPY --from=staging /assets.tar.gz /
 EOF
 
 docker build -t "$bldname" "$tmpdir"
-docker run --rm -i -v "$(realpath "$base/pkg/builder/assets"):/out" "$bldname" cp /assets.tar.gz /out/assets.tar.gz
+docker run --rm -i -v "$(realpath "$base/pkg/runtime/assets"):/out" "$bldname" cp /assets.tar.gz /out/assets.tar.gz

@@ -11,7 +11,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
-	"github.com/gitpod-io/gitpod/run-gp/pkg/builder"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/config"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime"
@@ -99,13 +98,6 @@ func getGitpodYaml() (*gitpod.GitpodConfig, error) {
 	return &cfg, nil
 }
 
-func getBuilder(workdir string) (builder.Builder, error) {
-	return &builder.DockerBuilder{
-		Workdir: workdir,
-		Images:  builder.DefaultImages,
-	}, nil
-}
-
-func getRuntime(workdir string) (runtime.Runtime, error) {
-	return &runtime.DockerRuntime{Workdir: workdir}, nil
+func getRuntime(workdir string) (runtime.RuntimeBuilder, error) {
+	return &runtime.Docker{Workdir: workdir}, nil
 }

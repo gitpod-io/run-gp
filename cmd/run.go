@@ -45,10 +45,6 @@ var runCmd = &cobra.Command{
 			return err
 		}
 
-		bb, err := getBuilder(rootOpts.Workdir)
-		if err != nil {
-			return err
-		}
 		runtime, err := getRuntime(rootOpts.Workdir)
 		if err != nil {
 			return err
@@ -57,7 +53,7 @@ var runCmd = &cobra.Command{
 		buildingPhase := log.StartPhase("[building]", "workspace image")
 		ref := filepath.Join("local/workspace-image:latest")
 		bldLog := log.Writer()
-		err = bb.BuildImage(bldLog, ref, cfg)
+		err = runtime.BuildImage(bldLog, ref, cfg)
 		if err != nil {
 			buildingPhase.Failure(err.Error())
 			bldLog.Show()

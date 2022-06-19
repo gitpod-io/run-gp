@@ -30,5 +30,5 @@ EOF
 
 echo "$temp_file"
 
-wd="$(realpath $(dirname $0)/../pkg/builder)"
+wd="$(realpath $(dirname $0)/../pkg/runtime/assets)"
 docker run --rm -it -v "$wd:/wd" -v "$temp_file:/run.sh" "eu.gcr.io/gitpod-core-dev/build/versions:$1" sh /run.sh
