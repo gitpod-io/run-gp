@@ -21,12 +21,13 @@ import (
 	"github.com/gitpod-io/gitpod/run-gp/pkg/telemetry"
 )
 
-type Docker struct {
+type docker struct {
 	Workdir string
+	Command string
 }
 
 // BuildImage builds the workspace image
-func (dr Docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error) {
+func (dr docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error) {
 	tmpdir, err := os.MkdirTemp("", "rungp-*")
 	if err != nil {
 		return err
@@ -94,7 +95,7 @@ func (dr Docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodC
 		return err
 	}
 
-	cmd := exec.Command("docker", "build", "-t", ref, "--pull=false", ".")
+	cmd := exec.Command(dr.Command, "build", "-t", ref, ".")
 	cmd.Dir = tmpdir
 	cmd.Stdout = logs
 	cmd.Stderr = logs
@@ -109,7 +110,7 @@ func (dr Docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodC
 }
 
 // Startworkspace actually runs a workspace using a previously built image
-func (dr Docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg *gitpod.GitpodConfig, opts StartOpts) error {
+func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg *gitpod.GitpodConfig, opts StartOpts) error {
 	var logs io.Writer
 	if opts.Logs != nil {
 		logs = opts.Logs
@@ -188,10 +189,10 @@ func (dr Docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		git.Dir = dr.Workdir
 		gitout, _ := git.CombinedOutput()
 
-		telemetry.RecordWorkspaceStarted(strings.TrimSpace(string(gitout)), "docker")
+		telemetry.RecordWorkspaceStarted(strings.TrimSpace(string(gitout)), dr.Command)
 	}
 
-	cmd := exec.Command("docker", args...)
+	cmd := exec.Command(dr.Command, args...)
 	cmd.Dir = dr.Workdir
 	cmd.Stdout = logs
 	cmd.Stderr = logs
@@ -202,7 +203,7 @@ func (dr Docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 			cmd.Process.Kill()
 		}
 
-		exec.Command("docker", "kill", name).CombinedOutput()
+		exec.Command(dr.Command, "kill", name).CombinedOutput()
 	}()
 
 	return cmd.Run()
