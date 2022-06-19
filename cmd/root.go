@@ -53,6 +53,7 @@ var rootOpts struct {
 	GitpodYamlFN     string
 	Verbose          bool
 	DisableTelemetry bool
+	Runtime          string
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -80,6 +81,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&rootOpts.GitpodYamlFN, "gitpod-yaml", "f", ".gitpod.yml", "path to the .gitpod.yml file relative to the working directory")
 	rootCmd.PersistentFlags().BoolVarP(&rootOpts.Verbose, "verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().BoolVar(&rootOpts.DisableTelemetry, "disable-telemetry", false, "disable telemetry")
+	rootCmd.PersistentFlags().StringVar(&rootOpts.Runtime, "runtime", "auto", "container runtime to use")
 }
 
 func getGitpodYaml() (*gitpod.GitpodConfig, error) {
@@ -99,5 +101,17 @@ func getGitpodYaml() (*gitpod.GitpodConfig, error) {
 }
 
 func getRuntime(workdir string) (runtime.RuntimeBuilder, error) {
-	return &runtime.Docker{Workdir: workdir}, nil
+	var rt runtime.SupportedRuntime
+	switch rootOpts.Runtime {
+	case "auto":
+		rt = runtime.AutodetectRuntime
+	case "docker":
+		rt = runtime.DockerRuntime
+	case "nerdctl":
+		rt = runtime.NerdctlRuntime
+	default:
+		return nil, fmt.Errorf("unsupported value for --runtime: %s. Only auto, docker and nerdctl are supported", rootOpts.Runtime)
+	}
+
+	return runtime.New(workdir, rt)
 }
