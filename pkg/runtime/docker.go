@@ -13,9 +13,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/telemetry"
 )
 
 type DockerRuntime struct {
@@ -95,6 +97,14 @@ func (dr DockerRuntime) StartWorkspace(ctx context.Context, workspaceImage strin
 
 	args = append(args, workspaceImage)
 	args = append(args, "/.supervisor/supervisor", "run", "--rungp")
+
+	if telemetry.Enabled() {
+		git := exec.Command("git", "remote", "get-uri", "origin")
+		git.Dir = dr.Workdir
+		gitout, _ := git.CombinedOutput()
+
+		telemetry.RecordWorkspaceStarted(strings.TrimSpace(string(gitout)), "docker")
+	}
 
 	cmd := exec.Command("docker", args...)
 	cmd.Dir = dr.Workdir

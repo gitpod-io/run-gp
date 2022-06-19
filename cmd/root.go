@@ -12,19 +12,48 @@ import (
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/builder"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/config"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/telemetry"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "rungp",
 	Short: "start a local dev-environment using a .gitpdod.yaml file",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		console.Init(rootOpts.Verbose)
+
+		cfg, err := config.ReadInConfig()
+		if err != nil {
+			console.Default.Warnf("%v", err)
+		}
+		if cfg == nil {
+			cfg = &config.Config{}
+		}
+
+		telemetry.Init(cfg.Telemetry.Disabled || rootOpts.DisableTelemetry, cfg.Telemetry.Identity)
+		if cfg.Telemetry.Identity == "" {
+			cfg.Telemetry.Identity = telemetry.Identity()
+			err := cfg.Write()
+			if err != nil {
+				console.Default.Warnf("cannot write config file: %v", err)
+			}
+
+			console.Default.Debugf("produced new telemetry identity: %s", cfg.Telemetry.Identity)
+		}
+	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		telemetry.Close()
+	},
 }
 
 var rootOpts struct {
-	Workdir      string
-	GitpodYamlFN string
-	Verbose      bool
+	Workdir          string
+	GitpodYamlFN     string
+	Verbose          bool
+	DisableTelemetry bool
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -51,9 +80,10 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&rootOpts.Workdir, "workdir", "w", wd, "Path to the working directory")
 	rootCmd.PersistentFlags().StringVarP(&rootOpts.GitpodYamlFN, "gitpod-yaml", "f", ".gitpod.yml", "path to the .gitpod.yml file relative to the working directory")
 	rootCmd.PersistentFlags().BoolVarP(&rootOpts.Verbose, "verbose", "v", false, "verbose output")
+	rootCmd.PersistentFlags().BoolVar(&rootOpts.DisableTelemetry, "disable-telemetry", false, "disable telemetry")
 }
 
-func getConfig() (*gitpod.GitpodConfig, error) {
+func getGitpodYaml() (*gitpod.GitpodConfig, error) {
 	fn := filepath.Join(rootOpts.Workdir, rootOpts.GitpodYamlFN)
 	fc, err := ioutil.ReadFile(fn)
 	if err != nil {

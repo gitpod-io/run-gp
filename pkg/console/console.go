@@ -11,13 +11,21 @@ import (
 	"os"
 
 	"github.com/pterm/pterm"
+	"github.com/sirupsen/logrus"
 )
 
+var Default Log = PTermLog{}
+
+func Init(verbose bool) {
+	Default = PTermLog{Verbose: verbose}
+}
+
 type Log interface {
-	// Log starts a new log printing session which ends once the writer is closed
-	Log() Logs
+	// Writer starts a new log printing session which ends once the writer is closed
+	Writer() Logs
 
 	StartPhase(name, description string) Phase
+	Debugf(format string, args ...interface{})
 	Infof(format string, args ...interface{})
 	Warnf(format string, args ...interface{})
 }
@@ -45,7 +53,7 @@ type PTermLog struct {
 	Verbose bool
 }
 
-func (ptl PTermLog) Log() Logs {
+func (ptl PTermLog) Writer() Logs {
 	f, err := ioutil.TempFile("", "rungp-*.log")
 	if err != nil {
 		return noopWriteCloser{&areaWriter{Area: &pterm.DefaultArea}}
@@ -58,8 +66,19 @@ func (ptl PTermLog) Log() Logs {
 	return res
 }
 
+func (ptl PTermLog) Debugf(format string, args ...interface{}) {
+	if ptl.Verbose {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+	logrus.Debugf(format, args...)
+}
+
+func (PTermLog) Infof(format string, args ...interface{}) {
+	logrus.Infof(format, args...)
+}
+
 func (ptl PTermLog) Warnf(format string, args ...interface{}) {
-	pterm.Warning.Printf(format, args...)
+	logrus.Warnf(format, args...)
 }
 
 type filebackedLogs struct {
@@ -75,10 +94,6 @@ func (fb *filebackedLogs) Show() {
 func (PTermLog) StartPhase(name, description string) Phase {
 	s, _ := pterm.DefaultSpinner.WithRemoveWhenDone(false).WithShowTimer(true).Start(name + " " + description)
 	return ptermPhase{Spinner: s}
-}
-
-func (PTermLog) Infof(format string, args ...interface{}) {
-	fmt.Printf(format, args...)
 }
 
 type ptermPhase struct {
@@ -117,12 +132,17 @@ func NewConsoleLog(w io.Writer) ConsoleLog {
 var _ Log = ConsoleLog{}
 
 // FixedMessage implements Log
+func (c ConsoleLog) Debugf(format string, args ...interface{}) {
+	fmt.Fprintf(c.w, format, args...)
+}
+
+// FixedMessage implements Log
 func (c ConsoleLog) Infof(format string, args ...interface{}) {
 	fmt.Fprintf(c.w, format, args...)
 }
 
 // Log implements Log
-func (c ConsoleLog) Log() Logs {
+func (c ConsoleLog) Writer() Logs {
 	return noopWriteCloser{c.w}
 }
 
