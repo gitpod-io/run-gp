@@ -9,7 +9,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/mattn/go-isatty"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
@@ -21,12 +24,24 @@ import (
 	"github.com/gitpod-io/gitpod/run-gp/pkg/telemetry"
 )
 
+var banner = `    
+   _______  ______     ____ _____ 
+  / ___/ / / / __ \   / __ ` + "`" + `/ __ \
+ / /  / /_/ / / / /  / /_/ / /_/ /
+/_/   \__,_/_/ /_/   \__, / .___/ 
+                     /____/_/      
+`
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "rungp",
 	Short: "start a local dev-environment using a .gitpdod.yaml file",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		console.Init(rootOpts.Verbose)
+
+		if isatty.IsTerminal(os.Stdout.Fd()) {
+			printBanner()
+		}
 
 		cfg, err := config.ReadInConfig()
 		if err != nil {
@@ -50,6 +65,21 @@ var rootCmd = &cobra.Command{
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		telemetry.Close()
 	},
+}
+
+func printBanner() {
+	var res string
+
+	lines := strings.Split(banner, "\n")
+	start, _ := pterm.NewRGBFromHEX("#ff8a00")
+	end, _ := pterm.NewRGBFromHEX("#ffbe5c")
+	for _, line := range lines {
+		for i := range line {
+			res += start.Fade(0, float32(len(line)), float32(i), end).Sprint(line[i : i+1])
+		}
+		res += "\n"
+	}
+	fmt.Println(res)
 }
 
 var rootOpts struct {

@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -20,14 +19,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var banner = `    
-   _______  ______     ____ _____ 
-  / ___/ / / / __ \   / __ ` + "`" + `/ __ \
- / /  / /_/ / / / /  / /_/ / /_/ /
-/_/   \__,_/_/ /_/   \__, / .___/ 
-                     /____/_/      
-`
-
 // serveCmd represents the serve command
 var runCmd = &cobra.Command{
 	Use:   "run",
@@ -37,8 +28,6 @@ var runCmd = &cobra.Command{
 		log := console.PTermLog{
 			Verbose: rootOpts.Verbose,
 		}
-
-		fmt.Println(banner)
 
 		cfg, err := getGitpodYaml()
 		if err != nil {
