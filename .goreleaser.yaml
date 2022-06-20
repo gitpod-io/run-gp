@@ -21,7 +21,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser -X pkg/telemetry.segmentKey={{ .Env.SEGMENT_KEY }}
+      - -s -w -X github.com/gitpod-io/gitpod/run-gp/cmd.version={{.Version}} -X github.com/gitpod-io/gitpod/run-gp/cmd.commit={{.Commit}} -X github.com/gitpod-io/gitpod/run-gp/cmd.date={{.Date}} -X github.com/gitpod-io/gitpod/run-gp/cmd.builtBy=goreleaser -X github.com/gitpod-io/gitpod/run-gp/pkg/telemetry.segmentKey={{ .Env.SEGMENT_KEY }}
 archives:
   - replacements:
       darwin: Darwin
