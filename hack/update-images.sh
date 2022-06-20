@@ -21,15 +21,19 @@ export webide="\$(yq '.components.workspace.codeImage.version' < versions.yaml)"
 curl -qL https://github.com/csweichel/oci-tool/releases/download/v0.2.0/oci-tool_0.2.0_linux_amd64.tar.gz | tar xzv
 export openvscode="\$(./oci-tool resolve name docker.io/gitpod/openvscode-server:latest)"
 
+export supervisorImage='eu.gcr.io/gitpod-core-dev/build/supervisor:'\${supervisor}
+export webideImage='eu.gcr.io/gitpod-core-dev/build/ide/code:'\${webide}
+
 echo
-echo "supervisor: \${supervisor}"
-echo "web IDE: \${webide}"
+echo "supervisor: \${supervisorImage}"
+echo "web IDE: \${webideImage}"
 echo "Ppen VS Code server: \${openvscode}"
 
-
-jq '.supervisor="eu.gcr.io/gitpod-core-dev/build/supervisor:'\${supervisor}'"' /wd/images.json | sponge /wd/images.json
-jq '."gitpod-code"="eu.gcr.io/gitpod-core-dev/build/ide/code:'\${webide}'"' /wd/images.json | sponge /wd/images.json
+echo '{"supervisor": "", "gitpod-code":"", "open-vscode":"", "envs":[]}' > /wd/images.json
+jq '.supervisor="'\${supervisorImage}'"' /wd/images.json | sponge /wd/images.json
+jq '."gitpod-code"="'\${webideImage}'"' /wd/images.json | sponge /wd/images.json
 jq '."open-vscode"="'\${openvscode}'"' /wd/images.json | sponge /wd/images.json
+./oci-tool fetch image "\${webideImage}" | jq '{envs: .config.Env}' | jq -s '.[0] * .[1]' /wd/images.json - | sponge /wd/images.json
 EOF
 
 echo "$temp_file"
