@@ -24,16 +24,21 @@ import (
 
 func NewBubbleTeaUI(verbose bool) (log *BubbleTeaUI, done <-chan struct{}, err error) {
 	var opts []tea.ProgramOption
-	if isatty.IsTerminal(os.Stdout.Fd()) {
+	isterm := isatty.IsTerminal(os.Stdout.Fd())
+	if verbose {
+		logrus.SetLevel(logrus.DebugLevel)
+		opts = []tea.ProgramOption{tea.WithoutRenderer()}
+	} else if isterm {
 		// If we're in TUI mode, discard log output
 		logrus.SetOutput(ioutil.Discard)
-	} else {
+	}
+	if !isterm {
 		// If we're in daemon mode don't render the TUI
 		opts = []tea.ProgramOption{tea.WithoutRenderer()}
 	}
 
 	if verbose {
-		logrus.SetLevel(logrus.DebugLevel)
+
 		logrus.SetOutput(os.Stdout)
 	}
 

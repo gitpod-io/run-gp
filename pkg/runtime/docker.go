@@ -86,6 +86,8 @@ func (dr docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodC
 	RUN rm /usr/bin/gp-vncsession || true
 	RUN mkdir -p /workspace && \
 		chown -R 33333:33333 /workspace
+
+	RUN ln -s /usr/bin/dockerd /usr/bin/docker-up
 	`
 
 	fmt.Fprintf(logs, "\nDockerfile:%s\n", df)
