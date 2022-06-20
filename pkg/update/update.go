@@ -17,11 +17,13 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/telemetry"
 	"github.com/google/go-github/v45/github"
 	"github.com/inconshreveable/go-update"
 	"golang.org/x/oauth2"
 )
 
+// Update runs the self-update
 func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscovery, cfgFN string) (err error) {
 	cv, err := semver.NewVersion(currentVersion)
 	if err != nil {
@@ -30,7 +32,8 @@ func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscove
 
 	latest, err := discovery.DiscoverLatest(ctx)
 	if err != nil {
-		return err
+		telemetry.RecordUpdateStatus("failed-discover-latest", "", err)
+		return fmt.Errorf("cannot discover latest version: %v", err)
 	}
 
 	if !cv.LessThan(latest.Version) {
@@ -57,6 +60,7 @@ func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscove
 		break
 	}
 	if candidate == nil {
+		telemetry.RecordUpdateStatus("failed-no-supported-executable", latest.Name, err)
 		return fmt.Errorf("no supported executable found for version %s (OS: %s, Architecture: %s)", latest.Name, os, arch)
 	}
 
@@ -71,22 +75,32 @@ func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscove
 
 	checksum, err := hex.DecodeString(candidate.Checksum)
 	if err != nil {
+		telemetry.RecordUpdateStatus("failed-invalid-checksum", latest.Name, err)
 		return fmt.Errorf("candidate %s has invalid checksum: %w", candidate.URL, err)
 	}
 
 	if candidate.IsArchive {
+		telemetry.RecordUpdateStatus("failed-is-archive", latest.Name, err)
 		return fmt.Errorf("not supported")
 	}
 
 	dl, err := discovery.Download(ctx, *candidate)
 	if err != nil {
+		telemetry.RecordUpdateStatus("failed-download", latest.Name, err)
 		return err
 	}
 	defer dl.Close()
 
-	return update.Apply(dl, update.Options{
+	err = update.Apply(dl, update.Options{
 		Checksum: checksum,
 	})
+	if err != nil {
+		telemetry.RecordUpdateStatus("failed-apply", latest.Name, err)
+		return err
+	}
+
+	telemetry.RecordUpdateStatus("success-apply", latest.Name, nil)
+	return nil
 }
 
 type Updater struct {

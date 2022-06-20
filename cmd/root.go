@@ -41,7 +41,7 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		telemetry.Init(cfg.Telemetry.Enabled && !rootOpts.DisableTelemetry, cfg.Telemetry.Identity)
+		telemetry.Init(cfg.Telemetry.Enabled && !rootOpts.DisableTelemetry, cfg.Telemetry.Identity, version)
 		if cfg.Telemetry.Identity == "" {
 			cfg.Telemetry.Identity = telemetry.Identity()
 			err := cfg.Write()

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	segment "github.com/segmentio/analytics-go/v3"
+	"github.com/sirupsen/logrus"
 )
 
 // Injected at build time
@@ -22,17 +23,19 @@ var segmentKey = "TgiJIVvFsBGwmxbnnt5NeeDaian9nr3n"
 var opts struct {
 	Enabled  bool
 	Identity string
+	Version  string
 
 	client segment.Client
 }
 
 // Init initialises the telemetry
-func Init(enabled bool, identity string) {
+func Init(enabled bool, identity, version string) {
 	opts.Enabled = enabled
 	if !enabled {
 		return
 	}
 
+	opts.Version = version
 	if identity == "" {
 		rand.Seed(time.Now().UnixNano())
 		letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
@@ -69,6 +72,7 @@ func track(event string, props segment.Properties) {
 	if !Enabled() {
 		return
 	}
+	logrus.WithField("props", props).WithField("event", event).Debug("Tracking telemetry")
 
 	opts.client.Enqueue(segment.Track{
 		AnonymousId: opts.Identity,
@@ -83,11 +87,9 @@ func RecordWorkspaceStarted(remoteURI string, containerRuntime string) {
 	uriHash := sha256.New()
 	_, _ = uriHash.Write([]byte(remoteURI))
 
-	track("rungp_start_workspace", segment.NewProperties().
+	track("rungp_start_workspace", defaultProperties().
 		Set("runtime", containerRuntime).
-		Set("remoteURIHash", fmt.Sprintf("sha256:%x", uriHash.Sum(nil))).
-		Set("GOOS", runtime.GOOS).
-		Set("GOARCH", runtime.GOARCH),
+		Set("remoteURIHash", fmt.Sprintf("sha256:%x", uriHash.Sum(nil))),
 	)
 }
 
@@ -96,13 +98,34 @@ func RecordWorkspaceFailure(remoteURI string, phase string, containerRuntime str
 	uriHash := sha256.New()
 	_, _ = uriHash.Write([]byte(remoteURI))
 
-	track("rungp_workspace_failure", segment.NewProperties().
+	track("rungp_workspace_failure", defaultProperties().
 		Set("runtime", containerRuntime).
 		Set("phase", phase).
-		Set("remoteURIHash", fmt.Sprintf("sha256:%x", uriHash.Sum(nil))).
-		Set("GOOS", runtime.GOOS).
-		Set("GOARCH", runtime.GOARCH),
+		Set("remoteURIHash", fmt.Sprintf("sha256:%x", uriHash.Sum(nil))),
 	)
+}
+
+// RecordUpdateStatus records the status of an update
+func RecordUpdateStatus(phase, newVersion string, err error) {
+	props := defaultProperties().
+		Set("phase", phase).
+		Set("newVersion", newVersion)
+	if err != nil {
+		msg := err.Error()
+		if len(msg) > 32 {
+			msg = msg[:32]
+		}
+		props = props.Set("error", msg)
+	}
+
+	track("rungp_autoupdate_status", props)
+}
+
+func defaultProperties() segment.Properties {
+	return segment.NewProperties().
+		Set("goos", runtime.GOOS).
+		Set("goarch", runtime.GOARCH).
+		Set("version", opts.Version)
 }
 
 // GetGitRemoteOriginURI returns the remote origin URI for the specified working directory.
