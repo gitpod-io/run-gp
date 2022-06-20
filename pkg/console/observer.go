@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func Observe(log Log, workspaceFolder string) Logs {
+func Observe(log Log, workspaceFolder string, onFail func()) Logs {
 	rr, rw := io.Pipe()
 
 	var (
@@ -32,6 +32,9 @@ func Observe(log Log, workspaceFolder string) Logs {
 			line := scanner.Text()
 
 			switch {
+			case strings.Contains(line, "Error response from daemon:"):
+				resetPhase = true
+				failure = line
 			case strings.Contains(line, "Web UI available"):
 				prefix := "folder"
 				if strings.HasSuffix(workspaceFolder, ".code-workspace") {
@@ -70,6 +73,8 @@ func Observe(log Log, workspaceFolder string) Logs {
 				continue
 			}
 			if failure != "" {
+				onFail()
+
 				p.Failure(failure)
 			} else {
 				p.Success()

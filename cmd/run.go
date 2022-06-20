@@ -14,6 +14,7 @@ import (
 
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/telemetry"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/update"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +29,6 @@ var runCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer log.Quit()
 		console.Init(log)
 
 		if rootOpts.cfg.AutoUpdate.Enabled {
@@ -50,46 +50,57 @@ var runCmd = &cobra.Command{
 			return err
 		}
 
-		buildingPhase := log.StartPhase("[building]", "workspace image")
-		ref := filepath.Join("local/workspace-image:latest")
-		bldLog := log.Writer()
-		err = runtime.BuildImage(bldLog, ref, cfg)
-		if err != nil {
-			buildingPhase.Failure(err.Error())
-			return err
-		}
-		bldLog.Discard()
-		buildingPhase.Success()
-
-		var (
-			publicSSHKey   string
-			publicSSHKeyFN = runOpts.SSHPublicKeyPath
-		)
-		if strings.HasPrefix(publicSSHKeyFN, "~") {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return err
-			}
-			publicSSHKeyFN = filepath.Join(home, strings.TrimPrefix(publicSSHKeyFN, "~"))
-		}
-
-		if fc, err := ioutil.ReadFile(publicSSHKeyFN); err == nil {
-			publicSSHKey = string(fc)
-		} else if rootOpts.Verbose {
-			log.Warnf("cannot read public SSH key from %s: %v", publicSSHKeyFN, err)
-		}
-
-		shutdown := make(chan struct{})
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
+		shutdown := make(chan struct{})
 		go func() {
-			runLogs := console.Observe(log, filepath.Join("/workspace", cfg.WorkspaceLocation))
+			defer close(shutdown)
+
+			buildingPhase := log.StartPhase("[building]", "workspace image")
+			ref := filepath.Join("local/workspace-image:latest")
+			bldLog := log.Writer()
+			err = runtime.BuildImage(bldLog, ref, cfg)
+			if err != nil {
+				buildingPhase.Failure(err.Error())
+				return
+			}
+			bldLog.Discard()
+			buildingPhase.Success()
+
+			var (
+				publicSSHKey   string
+				publicSSHKeyFN = runOpts.SSHPublicKeyPath
+			)
+			if strings.HasPrefix(publicSSHKeyFN, "~") {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					log.Warnf("cannot find user home directory: %v", err)
+					return
+				}
+				publicSSHKeyFN = filepath.Join(home, strings.TrimPrefix(publicSSHKeyFN, "~"))
+			}
+
+			if fc, err := ioutil.ReadFile(publicSSHKeyFN); err == nil {
+				publicSSHKey = string(fc)
+			} else if rootOpts.Verbose {
+				log.Warnf("cannot read public SSH key from %s: %v", publicSSHKeyFN, err)
+			}
+
+			recordFailure := func() {
+				if !telemetry.Enabled() {
+					return
+				}
+
+				telemetry.RecordWorkspaceFailure(telemetry.GetGitRemoteOriginURI(rootOpts.Workdir), "running", runtime.Name())
+			}
+
+			runLogs := console.Observe(log, filepath.Join("/workspace", cfg.WorkspaceLocation), recordFailure)
 			opts := runOpts.StartOpts
 			opts.Logs = runLogs
 			opts.SSHPublicKey = publicSSHKey
 			err := runtime.StartWorkspace(ctx, ref, cfg, opts)
 			if err != nil {
-				close(shutdown)
 				return
 			}
 			runLogs.Discard()
@@ -97,7 +108,10 @@ var runCmd = &cobra.Command{
 
 		select {
 		case <-done:
+			cancel()
+			<-shutdown
 		case <-shutdown:
+			log.Quit()
 		}
 
 		return nil

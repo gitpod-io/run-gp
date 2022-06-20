@@ -8,14 +8,16 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math/rand"
+	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	segment "github.com/segmentio/analytics-go/v3"
 )
 
 // Injected at build time
-var segmentKey = ""
+var segmentKey = "TgiJIVvFsBGwmxbnnt5NeeDaian9nr3n"
 
 var opts struct {
 	Enabled  bool
@@ -32,6 +34,7 @@ func Init(enabled bool, identity string) {
 	}
 
 	if identity == "" {
+		rand.Seed(time.Now().UnixNano())
 		letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 		b := make([]rune, 32)
 		for i := range b {
@@ -86,4 +89,26 @@ func RecordWorkspaceStarted(remoteURI string, containerRuntime string) {
 		Set("GOOS", runtime.GOOS).
 		Set("GOARCH", runtime.GOARCH),
 	)
+}
+
+// RecordWorkspaceFailure sets telemetry when a workspace fails
+func RecordWorkspaceFailure(remoteURI string, phase string, containerRuntime string) {
+	uriHash := sha256.New()
+	_, _ = uriHash.Write([]byte(remoteURI))
+
+	track("rungp_workspace_failure", segment.NewProperties().
+		Set("runtime", containerRuntime).
+		Set("phase", phase).
+		Set("remoteURIHash", fmt.Sprintf("sha256:%x", uriHash.Sum(nil))).
+		Set("GOOS", runtime.GOOS).
+		Set("GOARCH", runtime.GOARCH),
+	)
+}
+
+// GetGitRemoteOriginURI returns the remote origin URI for the specified working directory.
+func GetGitRemoteOriginURI(wd string) string {
+	git := exec.Command("git", "remote", "get-uri", "origin")
+	git.Dir = wd
+	gitout, _ := git.CombinedOutput()
+	return strings.TrimSpace(string(gitout))
 }

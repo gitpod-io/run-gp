@@ -56,6 +56,8 @@ func detectRuntime() (SupportedRuntime, error) {
 type RuntimeBuilder interface {
 	Runtime
 	Builder
+
+	Name() string
 }
 
 type Runtime interface {

@@ -151,8 +151,9 @@ type uiModel struct {
 
 	warnings []string
 
-	done chan struct{}
-	logs []string
+	quitting bool
+	done     chan struct{}
+	logs     []string
 }
 
 type uiPhase struct {
@@ -200,7 +201,8 @@ func (m uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgWarning:
 		m.warnings = append(m.warnings, string(msg))
 	case tea.KeyMsg:
-		if msg.Type == tea.KeyCtrlC {
+		if msg.Type == tea.KeyCtrlC || msg.Type == tea.KeyCtrlQ || msg.String() == "q" {
+			m.quitting = true
 			return m, tea.Quit
 		}
 		return m, nil
@@ -217,7 +219,7 @@ var banner = `
   / ___/ / / / __ \   / __ ` + "`" + `/ __ \
  / /  / /_/ / / / /  / /_/ / /_/ /
 /_/   \__,_/_/ /_/   \__, / .___/ 
-                     /____/_/      
+                    /____/_/      
 `
 
 var (
@@ -250,9 +252,9 @@ func (m uiModel) View() string {
 
 	for _, p := range m.phases {
 		if p.Failure == "" {
-			s += stylePhaseDone(" SUCCESS ")
+			s += stylePhaseDone(" SUCCESS ") + " "
 		} else {
-			s += stylePhaseFailed(" FAILURE ")
+			s += stylePhaseFailed(" FAILURE ") + " "
 		}
 		s += p.Desc + stylePhaseDuration(fmt.Sprintf(" (%3.3fs) ", p.Duration.Seconds()))
 		if p.Failure != "" {
@@ -269,6 +271,12 @@ func (m uiModel) View() string {
 		s += res + "\n"
 	}
 	s += "\n"
+
+	if m.quitting {
+		s += styleWarning("  SHUTTING DOWN  ")
+	} else {
+		s += styleHelp("Press q to quit") + "\n"
+	}
 
 	return indent.String(s, 1)
 }

@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
@@ -26,6 +25,10 @@ type docker struct {
 	Command string
 }
 
+func (dr docker) Name() string {
+	return dr.Command
+}
+
 // BuildImage builds the workspace image
 func (dr docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error) {
 	tmpdir, err := os.MkdirTemp("", "rungp-*")
@@ -33,6 +36,12 @@ func (dr docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodC
 		return err
 	}
 	defer os.RemoveAll(tmpdir)
+
+	defer func() {
+		if err != nil && telemetry.Enabled() {
+			telemetry.RecordWorkspaceFailure(telemetry.GetGitRemoteOriginURI(dr.Workdir), "build", dr.Command)
+		}
+	}()
 
 	var (
 		assetsHeader string
@@ -112,7 +121,7 @@ func (dr docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodC
 }
 
 // Startworkspace actually runs a workspace using a previously built image
-func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg *gitpod.GitpodConfig, opts StartOpts) error {
+func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg *gitpod.GitpodConfig, opts StartOpts) (err error) {
 	var logs io.Writer
 	if opts.Logs != nil {
 		logs = opts.Logs
@@ -187,11 +196,7 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 	args = append(args, "/.supervisor/supervisor", "run", "--rungp")
 
 	if telemetry.Enabled() {
-		git := exec.Command("git", "remote", "get-uri", "origin")
-		git.Dir = dr.Workdir
-		gitout, _ := git.CombinedOutput()
-
-		telemetry.RecordWorkspaceStarted(strings.TrimSpace(string(gitout)), dr.Command)
+		telemetry.RecordWorkspaceStarted(telemetry.GetGitRemoteOriginURI(dr.Workdir), dr.Command)
 	}
 
 	cmd := exec.Command(dr.Command, args...)
@@ -206,6 +211,10 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		}
 
 		exec.Command(dr.Command, "kill", name).CombinedOutput()
+
+		if err != nil && telemetry.Enabled() {
+			telemetry.RecordWorkspaceFailure(telemetry.GetGitRemoteOriginURI(dr.Workdir), "start", dr.Command)
+		}
 	}()
 
 	return cmd.Run()
