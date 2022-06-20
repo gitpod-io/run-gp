@@ -8,10 +8,8 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
@@ -26,9 +24,11 @@ var runCmd = &cobra.Command{
 	Short: "Starts a workspace",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log := console.Default
-
-		printBanner()
+		log, done, err := console.NewBubbleTeaUI(rootOpts.Verbose)
+		if err != nil {
+			return err
+		}
+		console.Init(log)
 
 		if rootOpts.cfg.AutoUpdate.Enabled {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -55,9 +55,9 @@ var runCmd = &cobra.Command{
 		err = runtime.BuildImage(bldLog, ref, cfg)
 		if err != nil {
 			buildingPhase.Failure(err.Error())
-			bldLog.Show()
 			return err
 		}
+		bldLog.Discard()
 		buildingPhase.Success()
 
 		var (
@@ -88,21 +88,17 @@ var runCmd = &cobra.Command{
 			opts.SSHPublicKey = publicSSHKey
 			err := runtime.StartWorkspace(ctx, ref, cfg, opts)
 			if err != nil {
-				runLogs.Show()
 				close(shutdown)
 				return
 			}
+			runLogs.Discard()
 		}()
 
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		select {
-		case <-sigChan:
-			// give things a change to shut down
-			log.Infof("\nReceived SIGTERM, shutting down")
-			cancel()
-			time.Sleep(1 * time.Second)
+		case <-done:
+
 		case <-shutdown:
+			log.Quit()
 		}
 
 		return nil
