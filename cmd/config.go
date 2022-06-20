@@ -9,12 +9,12 @@ import (
 )
 
 // serveCmd represents the serve command
-var debugCmd = &cobra.Command{
-	Use:    "debug",
-	Short:  "helps develop run-gp",
-	Hidden: true,
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "helps to configure run-gp",
+	// Hidden: true,
 }
 
 func init() {
-	rootCmd.AddCommand(debugCmd)
+	rootCmd.AddCommand(configCmd)
 }

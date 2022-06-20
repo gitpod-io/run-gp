@@ -9,9 +9,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
+	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -19,12 +21,18 @@ import (
 type Config struct {
 	Filename string `yaml:"-"`
 
-	AutoUpdate bool `yaml:"autoUpdate"`
+	AutoUpdate AutoUpdateConfig `yaml:"autoUpdate"`
 
-	Telemetry struct {
-		Disabled bool   `yaml:"disabled,omitempty"`
-		Identity string `yaml:"identity,omitempty"`
-	} `yaml:"telemetry,omitempty"`
+	Telemetry TelemtryConfig `yaml:"telemetry"`
+}
+
+type AutoUpdateConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+type TelemtryConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Identity string `yaml:"identity"`
 }
 
 var paths = []func() (string, error){
@@ -115,5 +123,76 @@ func (cfg *Config) Write() error {
 		return err
 	}
 	console.Default.Debugf("wrote config file: %v", cfg.Filename)
+	return nil
+}
+
+func (cfg *Config) Set(path string, value string) error {
+	fc, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	var nd yaml.Node
+	err = yaml.Unmarshal(fc, &nd)
+	if err != nil {
+		return err
+	}
+
+	pth, err := yamlpath.NewPath(path)
+	if err != nil {
+		return err
+	}
+
+	nds, err := pth.Find(&nd)
+	if err != nil {
+		return err
+	}
+	switch len(nds) {
+	case 0:
+		return fmt.Errorf("path %s unknown", path)
+	case 1:
+	default:
+		return fmt.Errorf("oath %s is not unique", path)
+	}
+
+	nds[0].Value = value
+
+	fc, err = yaml.Marshal(&nd)
+	if err != nil {
+		return err
+	}
+	err = yaml.Unmarshal(fc, cfg)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setStructValue(dst interface{}, path []string, value string) error {
+	if len(path) == 0 {
+		return nil
+	}
+
+	var (
+		field reflect.StructField
+		found bool
+	)
+	for _, field = range reflect.VisibleFields(reflect.TypeOf(dst)) {
+		if field.Name != path[0] {
+			continue
+		}
+		found = true
+		break
+	}
+	if !found {
+		return fmt.Errorf("unknown field")
+	}
+
+	if len(path) == 1 {
+
+	} else {
+
+	}
+
 	return nil
 }

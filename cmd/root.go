@@ -45,11 +45,16 @@ var rootCmd = &cobra.Command{
 		}
 		if cfg == nil {
 			cfg = &config.Config{
-				AutoUpdate: true,
+				AutoUpdate: config.AutoUpdateConfig{
+					Enabled: true,
+				},
+				Telemetry: config.TelemtryConfig{
+					Enabled: true,
+				},
 			}
 		}
 
-		telemetry.Init(cfg.Telemetry.Disabled || rootOpts.DisableTelemetry, cfg.Telemetry.Identity)
+		telemetry.Init(cfg.Telemetry.Enabled && !rootOpts.DisableTelemetry, cfg.Telemetry.Identity)
 		if cfg.Telemetry.Identity == "" {
 			cfg.Telemetry.Identity = telemetry.Identity()
 			err := cfg.Write()

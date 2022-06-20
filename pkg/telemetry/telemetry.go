@@ -18,16 +18,16 @@ import (
 var segmentKey = ""
 
 var opts struct {
-	Disabled bool
+	Enabled  bool
 	Identity string
 
 	client segment.Client
 }
 
 // Init initialises the telemetry
-func Init(disable bool, identity string) {
-	opts.Disabled = disable
-	if disable {
+func Init(enabled bool, identity string) {
+	opts.Enabled = enabled
+	if !enabled {
 		return
 	}
 
@@ -59,7 +59,7 @@ func Identity() string {
 
 // Enabled returns true if the telemetry is enabled
 func Enabled() bool {
-	return !opts.Disabled && opts.Identity != "" && opts.client != nil
+	return opts.Enabled && opts.Identity != "" && opts.client != nil
 }
 
 func track(event string, props segment.Properties) {

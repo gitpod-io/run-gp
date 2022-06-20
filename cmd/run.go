@@ -30,7 +30,7 @@ var runCmd = &cobra.Command{
 
 		printBanner()
 
-		if rootOpts.cfg.AutoUpdate {
+		if rootOpts.cfg.AutoUpdate.Enabled {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			err := update.Update(ctx, version, update.NewGitHubReleaseDiscovery(ctx), rootOpts.cfg.Filename)
