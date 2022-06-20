@@ -59,6 +59,7 @@ type BubbleTeaUI struct {
 
 func (ui *BubbleTeaUI) Quit() {
 	ui.prog.Send(tea.Quit())
+	time.Sleep(100 * time.Millisecond)
 }
 
 // Debugf implements Log

@@ -28,6 +28,7 @@ var runCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer log.Quit()
 		console.Init(log)
 
 		if rootOpts.cfg.AutoUpdate.Enabled {
@@ -96,9 +97,7 @@ var runCmd = &cobra.Command{
 
 		select {
 		case <-done:
-
 		case <-shutdown:
-			log.Quit()
 		}
 
 		return nil
