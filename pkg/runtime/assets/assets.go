@@ -8,6 +8,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -22,6 +23,18 @@ import (
 
 //go:embed *.tar.gz
 var assetPack embed.FS
+
+//go:embed images.json
+var imagesJSON []byte
+
+// ImageEnvVars returns the image environment variables embedded in the images.json file
+func ImageEnvVars() []string {
+	var res struct {
+		Envs []string `json:"envs"`
+	}
+	_ = json.Unmarshal(imagesJSON, &res)
+	return res.Envs
+}
 
 // IsEmbedded returns true if the assets are embedded in this binary
 func IsEmbedded() bool {

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
@@ -98,6 +99,7 @@ func (dr docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodC
 
 	RUN ln -s /usr/bin/dockerd /usr/bin/docker-up
 	`
+	df += strings.Join(assetEnvVars(assets.ImageEnvVars()), "\n")
 
 	fmt.Fprintf(logs, "\nDockerfile:%s\n", df)
 
@@ -118,6 +120,24 @@ func (dr docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodC
 	}
 
 	return nil
+}
+
+func assetEnvVars(input []string) []string {
+	res := make([]string, 0, len(input))
+
+	for _, env := range input {
+		segs := strings.Split(env, "=")
+		if len(segs) != 2 {
+			continue
+		}
+		name, value := segs[0], segs[1]
+		switch {
+		case strings.HasPrefix(name, "GITPOD_ENV_SET_"):
+			res = append(res, fmt.Sprintf("ENV %s=\"%s\"", strings.TrimPrefix(name, "GITPOD_ENV_SET_"), value))
+		}
+	}
+
+	return res
 }
 
 // Startworkspace actually runs a workspace using a previously built image
