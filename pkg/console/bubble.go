@@ -119,6 +119,10 @@ func (ui *BubbleTeaUI) Writer() Logs {
 	return &bubbleLogs{WriteCloser: rw, parent: ui}
 }
 
+func (ui *BubbleTeaUI) SetWorkspaceAccess(info WorkspaceAccess) {
+	ui.prog.Send(msgSetWorkspaceAccess(info))
+}
+
 type bubbleLogs struct {
 	io.WriteCloser
 	parent *BubbleTeaUI
@@ -156,6 +160,7 @@ type msgPhaseStart string
 type msgLogLine string
 type msgDiscardLogs struct{}
 type msgWarning string
+type msgSetWorkspaceAccess WorkspaceAccess
 
 var _ Log = &BubbleTeaUI{}
 
@@ -165,6 +170,8 @@ type uiModel struct {
 	currentPhase string
 
 	warnings []string
+
+	workspaceAccess *WorkspaceAccess
 
 	quitting bool
 	done     chan struct{}
@@ -207,10 +214,18 @@ func (m uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case msgLogLine:
 		m.logs = append(m.logs, string(msg))
-		if len(m.logs) >= 10 {
+		maxLogLines := 10
+		if m.workspaceAccess != nil {
+			maxLogLines = 6
+		}
+		if len(m.logs) >= maxLogLines {
 			m.logs = m.logs[1:]
 		}
 		logrus.Info(msg)
+	case msgSetWorkspaceAccess:
+		v := WorkspaceAccess(msg)
+		m.workspaceAccess = &v
+		logrus.WithField("SSH port", v.SSHPort).WithField("URL", v.URL).Infof("workspace is available")
 	case msgDiscardLogs:
 		m.logs = nil
 	case msgWarning:
@@ -238,11 +253,13 @@ var banner = `
 `
 
 var (
-	stylePhaseDone     = lipgloss.NewStyle().Background(lipgloss.Color("#16825d")).Render
-	stylePhaseFailed   = lipgloss.NewStyle().Background(lipgloss.Color("#f51f1f")).Render
-	stylePhaseDuration = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true).Render
-	styleHelp          = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render
-	styleWarning       = lipgloss.NewStyle().Background(lipgloss.Color("#ffbe5c")).Bold(true).Render
+	stylePhaseDone        = lipgloss.NewStyle().Background(lipgloss.Color("#16825d")).Render
+	stylePhaseFailed      = lipgloss.NewStyle().Background(lipgloss.Color("#f51f1f")).Render
+	stylePhaseDuration    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true).Render
+	styleHelp             = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render
+	styleWarning          = lipgloss.NewStyle().Background(lipgloss.Color("#ffbe5c")).Bold(true).Render
+	styleWorkspaceURLDesc = lipgloss.NewStyle().Bold(true).Render
+	styleWorkspaceURL     = lipgloss.NewStyle().Bold(true).Underline(true).Render
 )
 
 func (m uiModel) View() string {
@@ -262,6 +279,12 @@ func (m uiModel) View() string {
 		for _, w := range m.warnings {
 			s += styleWarning(" WARNING ") + " " + w + "\n"
 		}
+		s += "\n"
+	}
+
+	if m.workspaceAccess != nil {
+		s += styleWorkspaceURLDesc("Open the workspace at: ") + styleWorkspaceURL(m.workspaceAccess.URL) + "\n"
+		s += styleWorkspaceURLDesc("            SSH using: ") + fmt.Sprintf("ssh -p %d gitpod@localhost", m.workspaceAccess.SSHPort) + "\n"
 		s += "\n"
 	}
 

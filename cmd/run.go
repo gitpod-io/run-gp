@@ -25,8 +25,12 @@ var runCmd = &cobra.Command{
 	Short: "Starts a workspace",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
+		uiMode := console.UIModeAuto
+		if rootOpts.Verbose {
+			uiMode = console.UIModeDaemon
+		}
 		log, done, err := console.NewBubbleTeaUI(console.BubbleUIOpts{
-			UIMode:  console.UIModeAuto,
+			UIMode:  uiMode,
 			Verbose: rootOpts.Verbose,
 		})
 		if err != nil {
@@ -98,7 +102,11 @@ var runCmd = &cobra.Command{
 				telemetry.RecordWorkspaceFailure(telemetry.GetGitRemoteOriginURI(rootOpts.Workdir), "running", runtime.Name())
 			}
 
-			runLogs := console.Observe(log, filepath.Join("/workspace", cfg.WorkspaceLocation), recordFailure)
+			runLogs := console.Observe(log, console.WorkspaceAccessInfo{
+				WorkspaceFolder: filepath.Join("/workspace", cfg.WorkspaceLocation),
+				HTTPPort:        runOpts.StartOpts.IDEPort,
+				SSHPort:         runOpts.StartOpts.SSHPort,
+			}, recordFailure)
 			opts := runOpts.StartOpts
 			opts.Logs = runLogs
 			opts.SSHPublicKey = publicSSHKey

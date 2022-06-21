@@ -11,7 +11,13 @@ import (
 	"strings"
 )
 
-func Observe(log Log, workspaceFolder string, onFail func()) Logs {
+type WorkspaceAccessInfo struct {
+	WorkspaceFolder string
+	HTTPPort        int
+	SSHPort         int
+}
+
+func Observe(log Log, access WorkspaceAccessInfo, onFail func()) Logs {
 	rr, rw := io.Pipe()
 
 	var (
@@ -23,6 +29,7 @@ func Observe(log Log, workspaceFolder string, onFail func()) Logs {
 	go func() {
 		extensions := make(map[string]struct{})
 
+		var workspaceURL string
 		scanner := bufio.NewScanner(rr)
 		for scanner.Scan() {
 			var (
@@ -37,12 +44,17 @@ func Observe(log Log, workspaceFolder string, onFail func()) Logs {
 				failure = line
 			case strings.Contains(line, "Web UI available"):
 				prefix := "folder"
-				if strings.HasSuffix(workspaceFolder, ".code-workspace") {
+				if strings.HasSuffix(access.WorkspaceFolder, ".code-workspace") {
 					prefix = "workspace"
 				}
+				workspaceURL = fmt.Sprintf("http://localhost:%d/?%s=%s", access.HTTPPort, prefix, access.WorkspaceFolder)
 
 				phase = "running"
-				steady = fmt.Sprintf("workspace at http://localhost:8080/?%s=%s", prefix, workspaceFolder)
+				steady = fmt.Sprintf("workspace at %s", workspaceURL)
+				log.SetWorkspaceAccess(WorkspaceAccess{
+					URL:     workspaceURL,
+					SSHPort: access.SSHPort,
+				})
 			case strings.Contains(line, "Installing extensions"):
 				phase = "installing extensions"
 				steady = "running " + steady

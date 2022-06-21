@@ -21,6 +21,8 @@ type Log interface {
 	// Writer starts a new log printing session which ends once the writer is closed
 	Writer() Logs
 
+	SetWorkspaceAccess(info WorkspaceAccess)
+
 	StartPhase(name, description string) Phase
 	Debugf(format string, args ...interface{})
 	Infof(format string, args ...interface{})
@@ -64,6 +66,15 @@ func (c ConsoleLog) Warnf(format string, args ...interface{}) {
 // Log implements Log
 func (c ConsoleLog) Writer() Logs {
 	return noopWriteCloser{c.w}
+}
+
+func (c ConsoleLog) SetWorkspaceAccess(info WorkspaceAccess) {
+	c.Infof("workspace access: %v", info)
+}
+
+type WorkspaceAccess struct {
+	URL     string
+	SSHPort int
 }
 
 // StartPhase implements Log
