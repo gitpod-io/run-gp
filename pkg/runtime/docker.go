@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -96,8 +97,6 @@ func (dr docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodC
 	RUN rm /usr/bin/gp-vncsession || true
 	RUN mkdir -p /workspace && \
 		chown -R 33333:33333 /workspace
-
-	RUN ln -s /usr/bin/dockerd /usr/bin/docker-up
 	`
 	df += strings.Join(assetEnvVars(assets.ImageEnvVars()), "\n")
 
@@ -161,6 +160,10 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 
 	name := fmt.Sprintf("rungp-%d", time.Now().UnixNano())
 	args := []string{"run", "--rm", "--user", "root", "--privileged", "-p", fmt.Sprintf("%d:22999", opts.IDEPort), "-v", fmt.Sprintf("%s:%s", dr.Workdir, filepath.Join("/workspace", checkoutLocation)), "--name", name}
+
+	if (runtime.GOOS == "darwin" || runtime.GOOS == "linux") && dr.Command == "docker" {
+		args = append(args, "-v", "/var/run/docker.sock:/var/run/docker.sock")
+	}
 
 	tasks, err := json.Marshal(cfg.Tasks)
 	if err != nil {
