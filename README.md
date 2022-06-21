@@ -27,6 +27,7 @@
 - ✅ **SSH Access**: if your user has an SSH key (`~/.ssh/id_rsa.pub` file) present, the run-gp workspace will sport an SSH server with an appropriate entry in authorized_keys. This means that you can just SSH into the `run-gp` workspace, e.g. from a terminal or using VS Code.
 - ✅ VS Code extension installation: VS Code extensions specified in the `.gitpod.yml` will be installed when the workspace starts up. Those extensions are downloaded from [Open VSX](https://open-vsx.org), much like on gitpod.io.
 - ✅ **Tasks** configured in the `.gitpod.yml` will run automatically on startup. 
+- ✅ **Ports** configured in the `.gitpod.yml` will be made available on startup. There is no dynamic port exposure you might expect from a Gitpod workspace.
 - ✅ **Airgapped startup** so that other the image that's configured for the workspace no external assets need to be downloaded. It's all in the `run-gp` binary.
 - ✅ **Auto-Update** which keeps `run-gp` up to date without you having to worry about it. This can be disabled - see the Config section below.
 - ⚠️ **Docker-in-Docker** depends on the environment you use `run-gp` in. It does not work yet on MacOS and when `run-gp` is used from within a Gitpod workspace.
