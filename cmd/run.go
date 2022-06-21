@@ -25,7 +25,10 @@ var runCmd = &cobra.Command{
 	Short: "Starts a workspace",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log, done, err := console.NewBubbleTeaUI(rootOpts.Verbose)
+		log, done, err := console.NewBubbleTeaUI(console.BubbleUIOpts{
+			UIMode:  console.UIModeAuto,
+			Verbose: rootOpts.Verbose,
+		})
 		if err != nil {
 			return err
 		}

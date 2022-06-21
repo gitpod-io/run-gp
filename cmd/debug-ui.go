@@ -17,10 +17,14 @@ var debugUICmd = &cobra.Command{
 	Use:   "ui",
 	Short: "runs the bubble UI",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		lg, _, err := console.NewBubbleTeaUI(false)
+		lg, _, err := console.NewBubbleTeaUI(console.BubbleUIOpts{
+			UIMode:  console.UIModeFancy,
+			Verbose: false,
+		})
 		if err != nil {
 			return err
 		}
+		defer lg.Quit()
 
 		p := lg.StartPhase("", "doing something")
 		time.Sleep(200 * time.Millisecond)

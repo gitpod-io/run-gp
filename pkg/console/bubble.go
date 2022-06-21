@@ -22,28 +22,43 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewBubbleTeaUI(verbose bool) (log *BubbleTeaUI, done <-chan struct{}, err error) {
-	var opts []tea.ProgramOption
-	isterm := isatty.IsTerminal(os.Stdout.Fd())
-	if verbose {
-		logrus.SetLevel(logrus.DebugLevel)
-		opts = []tea.ProgramOption{tea.WithoutRenderer()}
-	} else if isterm {
-		// If we're in TUI mode, discard log output
+type UIMode int
+
+const (
+	UIModeAuto UIMode = iota
+	UIModeDaemon
+	UIModeFancy
+)
+
+type BubbleUIOpts struct {
+	UIMode  UIMode
+	Verbose bool
+}
+
+func NewBubbleTeaUI(opts BubbleUIOpts) (log *BubbleTeaUI, done <-chan struct{}, err error) {
+	var teaopts []tea.ProgramOption
+
+	if opts.UIMode == UIModeAuto {
+		isterm := isatty.IsTerminal(os.Stdout.Fd())
+		if isterm {
+			opts.UIMode = UIModeFancy
+		} else {
+			opts.UIMode = UIModeDaemon
+		}
+	}
+	switch opts.UIMode {
+	case UIModeDaemon:
+		teaopts = []tea.ProgramOption{tea.WithoutRenderer()}
+	case UIModeFancy:
 		logrus.SetOutput(ioutil.Discard)
 	}
-	if !isterm {
-		// If we're in daemon mode don't render the TUI
-		opts = []tea.ProgramOption{tea.WithoutRenderer()}
-	}
-
-	if verbose {
-
+	if opts.Verbose {
+		logrus.SetLevel(logrus.DebugLevel)
 		logrus.SetOutput(os.Stdout)
 	}
 
 	m := newUIModel()
-	p := tea.NewProgram(m, opts...)
+	p := tea.NewProgram(m, teaopts...)
 	go func() {
 		p.Start()
 		close(m.done)
