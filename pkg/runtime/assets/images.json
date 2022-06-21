@@ -1,15 +1,15 @@
 {
-    "supervisor": "eu.gcr.io/gitpod-core-dev/build/supervisor:commit-541d124134d6e1595acee9f5204c5176e15899d9",
-    "gitpod-code": "eu.gcr.io/gitpod-core-dev/build/ide/code:commit-6b387debb57d4504bf85764fdb573afaeab03473",
-    "open-vscode": "docker.io/gitpod/openvscode-server:latest@sha256:29dad24bb1a707d2cc269a8df4fb47e8ff29d07f5af40a20a4010d0477cc32ff",
-    "envs": [
-        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "GITPOD_ENV_APPEND_PATH=/ide/bin/remote-cli:",
-        "GITPOD_ENV_SET_EDITOR=/ide/bin/remote-cli/gitpod-code",
-        "GITPOD_ENV_SET_VISUAL=/ide/bin/remote-cli/gitpod-code",
-        "GITPOD_ENV_SET_GP_OPEN_EDITOR=/ide/bin/remote-cli/gitpod-code",
-        "GITPOD_ENV_SET_GIT_EDITOR=/ide/bin/remote-cli/gitpod-code --wait",
-        "GITPOD_ENV_SET_GP_PREVIEW_BROWSER=/ide/bin/remote-cli/gitpod-code --preview",
-        "GITPOD_ENV_SET_GP_EXTERNAL_BROWSER=/ide/bin/remote-cli/gitpod-code --openExternal"
-    ]
+  "supervisor": "eu.gcr.io/gitpod-core-dev/build/supervisor:commit-35a43c0a8d59210e3a46bc73cef4023d515285a1",
+  "gitpod-code": "eu.gcr.io/gitpod-core-dev/build/ide/code:commit-afa4a406cf740691ec864cdfd4595057e03f36a0",
+  "open-vscode": "docker.io/gitpod/openvscode-server:latest@sha256:3963ff5a3dca6c743f6697807355dbf6d224e5da165e897557ac29b269efda66",
+  "envs": [
+    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "GITPOD_ENV_APPEND_PATH=/ide/bin/remote-cli:",
+    "GITPOD_ENV_SET_EDITOR=/ide/bin/remote-cli/gitpod-code",
+    "GITPOD_ENV_SET_VISUAL=/ide/bin/remote-cli/gitpod-code",
+    "GITPOD_ENV_SET_GP_OPEN_EDITOR=/ide/bin/remote-cli/gitpod-code",
+    "GITPOD_ENV_SET_GIT_EDITOR=/ide/bin/remote-cli/gitpod-code --wait",
+    "GITPOD_ENV_SET_GP_PREVIEW_BROWSER=/ide/bin/remote-cli/gitpod-code --preview",
+    "GITPOD_ENV_SET_GP_EXTERNAL_BROWSER=/ide/bin/remote-cli/gitpod-code --openExternal"
+  ]
 }
