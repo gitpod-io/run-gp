@@ -25,6 +25,11 @@ import (
 
 // Update runs the self-update
 func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscovery, cfgFN string) (err error) {
+	if currentVersion == "v0.0.0" {
+		// development builds don't auto update
+		return nil
+	}
+
 	cv, err := semver.NewVersion(currentVersion)
 	if err != nil {
 		return fmt.Errorf("cannot parse current version %s: %v", currentVersion, err)
