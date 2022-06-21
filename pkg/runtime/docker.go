@@ -149,17 +149,15 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		logs = io.Discard
 	}
 
-	checkoutLocation := cfg.CheckoutLocation
-	if checkoutLocation == "" {
-		checkoutLocation = filepath.Base(dr.Workdir)
+	if cfg.CheckoutLocation == "" {
+		return fmt.Errorf("missing checkout location")
 	}
-	workspaceLocation := cfg.WorkspaceLocation
-	if workspaceLocation == "" {
-		workspaceLocation = checkoutLocation
+	if cfg.WorkspaceLocation == "" {
+		return fmt.Errorf("missing workspace location")
 	}
 
 	name := fmt.Sprintf("rungp-%d", time.Now().UnixNano())
-	args := []string{"run", "--rm", "--user", "root", "--privileged", "-p", fmt.Sprintf("%d:22999", opts.IDEPort), "-v", fmt.Sprintf("%s:%s", dr.Workdir, filepath.Join("/workspace", checkoutLocation)), "--name", name}
+	args := []string{"run", "--rm", "--user", "root", "--privileged", "-p", fmt.Sprintf("%d:22999", opts.IDEPort), "-v", fmt.Sprintf("%s:%s", dr.Workdir, filepath.Join("/workspace", cfg.CheckoutLocation)), "--name", name}
 
 	if (runtime.GOOS == "darwin" || runtime.GOOS == "linux") && dr.Command == "docker" {
 		args = append(args, "-v", "/var/run/docker.sock:/var/run/docker.sock")
@@ -174,8 +172,8 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		"GITPOD_WORKSPACE_URL":           "http://localhost",
 		"GITPOD_THEIA_PORT":              "23000",
 		"GITPOD_IDE_ALIAS":               "code",
-		"THEIA_WORKSPACE_ROOT":           filepath.Join("/workspace", workspaceLocation),
-		"GITPOD_REPO_ROOT":               filepath.Join("/workspace", checkoutLocation),
+		"THEIA_WORKSPACE_ROOT":           filepath.Join("/workspace", cfg.WorkspaceLocation),
+		"GITPOD_REPO_ROOT":               filepath.Join("/workspace", cfg.CheckoutLocation),
 		"GITPOD_PREVENT_METADATA_ACCESS": "false",
 		"GITPOD_WORKSPACE_ID":            "a-random-name",
 		"GITPOD_TASKS":                   string(tasks),

@@ -52,6 +52,13 @@ var runCmd = &cobra.Command{
 			return err
 		}
 
+		if cfg.CheckoutLocation == "" {
+			cfg.CheckoutLocation = filepath.Base(rootOpts.Workdir)
+		}
+		if cfg.WorkspaceLocation == "" {
+			cfg.WorkspaceLocation = cfg.CheckoutLocation
+		}
+
 		runtime, err := getRuntime(rootOpts.Workdir)
 		if err != nil {
 			return err
