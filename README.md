@@ -80,3 +80,14 @@ By default `run-gp` will send anonymous telemetry. We never send identifiable de
 ```bash
 run-gp config set telemetry.enabled false
 ```
+
+## Frequently Asked Questions
+
+- **This readme refers to `run-gp` as experiment. What does that mean?**
+  
+    This means that `run-gp` is not a polished product. Instead it's an attempt to [ship a 🛹](https://www.gitpod.io/blog/gitpod-core-values#ship-skateboards), i.e. an MVP that explores how local Gitpod-like workspaces would look like. This repository is not backed by a regular product team, but instead a product exploration effort.
+
+- **The performacne on my M1 Mac is terrible, what can I do?** 
+
+    Until the release of [MacOS 13](https://developer.apple.com/documentation/virtualization/running_intel_binaries_in_linux_vms_with_rosetta), Docker Desktop (and any other Linux VM) will be rather slow on arm64 hardware. It's unlikely we'll produce an arm64 version of Gitpod before (if ever) MacOS 13 comes out. Your best chance is to find an x86 machine, or wait for the release of MacOS 13.
+
