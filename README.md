@@ -37,10 +37,30 @@
 - ❌ **Gitpod Backups** are unsupported because this tool is completely disconnected from [gitpod.io](https://gitpod.io).
 
 ## Getting Started
-1. Download the [latest release](https://github.com/gitpod-io/run-gp/releases/latest)
-2. In a terminal, navigate to a directory which has a `.gitpod.yml` file, e.g. a Git working copy of your repository.
-3. Run `run-gp`
-4. Once the workspace is ready, open the URL displayed in the terminal.
+<ol>
+  <li>
+    Download the [latest release](https://github.com/gitpod-io/run-gp/releases/latest). 
+    <details>
+      <summary>If you're on MacOS you'll need to jump through hoops because the run-gp releases are not signed.</summary>
+      MacOS requires that binaries downloaded using a browser must be [signed and notarized](https://developer.apple.com/developer-id/). Otherwise you won't be able to just execute the `run-gp` command. If you download the release using `curl` in a terminal, MacOS will just let you execute the binary. Alternatively, you can head over to the `Security` system settings and allow the binary to run once MacOS denied this on the first attempt.
+    </details>
+  </li>
+  <li>
+  
+  In a terminal navigate to a directory containing a `.gitpod.yml` file, e.g. a Git working copy of a repository, then execute `run-gp`.
+
+  ```bash
+  git clone https://github.com/gitpod-io/go-gin-app
+  cd go-gin-app
+  run-gp
+  ```
+
+  **Note:** The `run-gp` command will use the current working directory as context. To point it to a different directory, use the `-w` option.
+  </li>
+  <li>
+  Once the workspace is ready, open the URL displayed in the terminal.
+  </li>
+</ol>
 
 ## Configuration
 `run-gp` does not have a lot of configuration settings, as most thinsg are determined by the `.gitpod.yml`. You can find the location of the configuration file using
