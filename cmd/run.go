@@ -72,7 +72,7 @@ var runCmd = &cobra.Command{
 			defer close(shutdown)
 
 			buildingPhase := log.StartPhase("[building]", "workspace image")
-			ref := filepath.Join("local/workspace-image:latest")
+			ref := filepath.Join("workspace-image:latest")
 			bldLog := log.Writer()
 			err = runtime.BuildImage(bldLog, ref, cfg)
 			if err != nil {
