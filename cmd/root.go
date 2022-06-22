@@ -100,6 +100,9 @@ func init() {
 func getGitpodYaml() (*gitpod.GitpodConfig, error) {
 	fn := filepath.Join(rootOpts.Workdir, rootOpts.GitpodYamlFN)
 	fc, err := ioutil.ReadFile(fn)
+	if os.IsNotExist(err) {
+		return &gitpod.GitpodConfig{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
