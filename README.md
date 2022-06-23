@@ -21,6 +21,9 @@
 > **Warning**
 > This is an experiment. When you find an issue, [please report it](https://github.com/gitpod-io/run-gp/issues/new?assignees=&labels=&template=bug_report.md&title=) so that we can improve this project.
 
+> **Note**
+> `run-gp` is **not the "real Gitpod experience"**. Gitpod offers remote development environments which sport many benefits compared to running things locally. Head over to https://www.gitpod.io to find out more.
+
 ## Features
 - ✅ **Image Build**: `run-gp` produces a workspace image based on the `image` section in the `.gitpod.yml`. If no such section exists, `gitpod/workspace-full:latest` is used.
 - ✅ **Browser Access**: by default we'll start [Open VS Code server](https://github.com/gitpod-io/openvscode-server) to provide an experience akin to a regular Gitpod workspace. This means that a `run-gp` workspace is accessible from your browser.
