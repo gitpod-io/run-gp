@@ -41,9 +41,11 @@ var runCmd = &cobra.Command{
 		if rootOpts.cfg.AutoUpdate.Enabled {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer cancel()
-			err := update.Update(ctx, version, update.NewGitHubReleaseDiscovery(ctx), rootOpts.cfg.Filename)
+			didUpdate, err := update.Update(ctx, version, update.NewGitHubReleaseDiscovery(ctx), rootOpts.cfg.Filename)
 			if err != nil {
 				log.Warnf("failed to auto-update: %v", err)
+			} else if didUpdate {
+				log.Warnf("Updated to new version - update comes into effect with the next start of run-gp")
 			}
 		}
 
