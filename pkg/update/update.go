@@ -25,10 +25,10 @@ import (
 
 // Update runs the self-update
 func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscovery, cfgFN string) (didUpdate bool, err error) {
-	// if currentVersion == "v0.0.0" {
-	// 	// development builds don't auto update
-	// 	return false, nil
-	// }
+	if currentVersion == "v0.0.0" {
+		// development builds don't auto update
+		return false, nil
+	}
 
 	cv, err := semver.NewVersion(currentVersion)
 	if err != nil {

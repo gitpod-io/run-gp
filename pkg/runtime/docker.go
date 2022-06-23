@@ -32,7 +32,7 @@ func (dr docker) Name() string {
 }
 
 // BuildImage builds the workspace image
-func (dr docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error) {
+func (dr docker) BuildImage(ctx context.Context, logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error) {
 	tmpdir, err := os.MkdirTemp("", "rungp-*")
 	if err != nil {
 		return err
@@ -111,6 +111,14 @@ func (dr docker) BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodC
 	cmd.Dir = tmpdir
 	cmd.Stdout = logs
 	cmd.Stderr = logs
+
+	go func() {
+		<-ctx.Done()
+		if proc := cmd.Process; proc != nil {
+			proc.Kill()
+		}
+	}()
+
 	err = cmd.Run()
 	if _, ok := err.(*exec.ExitError); ok {
 		return fmt.Errorf("workspace image build failed")
