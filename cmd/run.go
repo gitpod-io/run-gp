@@ -39,7 +39,7 @@ var runCmd = &cobra.Command{
 		console.Init(log)
 
 		if rootOpts.cfg.AutoUpdate.Enabled {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer cancel()
 			err := update.Update(ctx, version, update.NewGitHubReleaseDiscovery(ctx), rootOpts.cfg.Filename)
 			if err != nil {

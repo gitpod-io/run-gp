@@ -35,7 +35,9 @@ func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscove
 		return fmt.Errorf("cannot parse current version %s: %v", currentVersion, err)
 	}
 
-	latest, err := discovery.DiscoverLatest(ctx)
+	discoveryCtx, discoveryCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer discoveryCancel()
+	latest, err := discovery.DiscoverLatest(discoveryCtx)
 	if err != nil {
 		telemetry.RecordUpdateStatus("failed-discover-latest", "", err)
 		return fmt.Errorf("cannot discover latest version: %v", err)
