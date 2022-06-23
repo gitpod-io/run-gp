@@ -76,7 +76,7 @@ var runCmd = &cobra.Command{
 			buildingPhase := log.StartPhase("[building]", "workspace image")
 			ref := filepath.Join("workspace-image:latest")
 			bldLog := log.Writer()
-			err = runtime.BuildImage(bldLog, ref, cfg)
+			err = runtime.BuildImage(ctx, bldLog, ref, cfg)
 			if err != nil {
 				buildingPhase.Failure(err.Error())
 				return

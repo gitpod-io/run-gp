@@ -65,7 +65,7 @@ type Runtime interface {
 }
 
 type Builder interface {
-	BuildImage(logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error)
+	BuildImage(ctx context.Context, logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error)
 }
 
 type StartOpts struct {

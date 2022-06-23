@@ -64,16 +64,45 @@ func NewBubbleTeaUI(opts BubbleUIOpts) (log *BubbleTeaUI, done <-chan struct{}, 
 		close(m.done)
 	}()
 
-	return &BubbleTeaUI{prog: p}, m.done, err
+	res := &BubbleTeaUI{
+		prog: p,
+		// This channel has a high capacity to avoid dropping messages
+		// because we have no better way to detect a blocking write to bubbletea.
+		msgs: make(chan tea.Msg, 1000),
+	}
+	go res.forwardMessages()
+
+	return res, m.done, err
 }
 
 type BubbleTeaUI struct {
 	prog    *tea.Program
 	verbose bool
+
+	msgs chan tea.Msg
+}
+
+// forwardMessages sends messages to the bubbletea program.
+// Program.Send blocks once the program has ended, which may lead to
+// blockig UI operations. By forwarding messages, we can implement our
+// own sender mechanism.
+func (ui *BubbleTeaUI) forwardMessages() {
+	for m := range ui.msgs {
+		ui.prog.Send(m)
+	}
+}
+
+func (ui *BubbleTeaUI) sendMsg(m tea.Msg) {
+	select {
+	case ui.msgs <- m:
+	default:
+		// because the ui.sendMsg can be blocking, we
+		// just drop messages here.
+	}
 }
 
 func (ui *BubbleTeaUI) Quit() {
-	ui.prog.Send(tea.Quit())
+	ui.sendMsg(tea.Quit())
 	time.Sleep(100 * time.Millisecond)
 }
 
@@ -90,13 +119,13 @@ func (*BubbleTeaUI) Infof(format string, args ...interface{}) {
 // Warnf implements Log
 func (ui *BubbleTeaUI) Warnf(format string, args ...interface{}) {
 	logrus.Warnf(format, args...)
-	ui.prog.Send(msgWarning(fmt.Sprintf(format, args...)))
+	ui.sendMsg(msgWarning(fmt.Sprintf(format, args...)))
 }
 
 // StartPhase implements Log
 func (ui *BubbleTeaUI) StartPhase(name string, description string) Phase {
 	desc := name + " " + description
-	ui.prog.Send(msgPhaseStart(desc))
+	ui.sendMsg(msgPhaseStart(desc))
 	return &bubblePhase{
 		parent: ui,
 		start:  time.Now(),
@@ -112,7 +141,7 @@ func (ui *BubbleTeaUI) Writer() Logs {
 		r := bufio.NewScanner(rr)
 		for r.Scan() {
 			l := r.Text()
-			ui.prog.Send(msgLogLine(l))
+			ui.sendMsg(msgLogLine(l))
 		}
 	}()
 
@@ -120,7 +149,7 @@ func (ui *BubbleTeaUI) Writer() Logs {
 }
 
 func (ui *BubbleTeaUI) SetWorkspaceAccess(info WorkspaceAccess) {
-	ui.prog.Send(msgSetWorkspaceAccess(info))
+	ui.sendMsg(msgSetWorkspaceAccess(info))
 }
 
 type bubbleLogs struct {
@@ -129,7 +158,7 @@ type bubbleLogs struct {
 }
 
 func (b *bubbleLogs) Discard() {
-	b.parent.prog.Send(msgDiscardLogs{})
+	b.parent.sendMsg(msgDiscardLogs{})
 }
 
 type bubblePhase struct {
@@ -140,7 +169,7 @@ type bubblePhase struct {
 
 // Failure implements Phase
 func (p *bubblePhase) Failure(reason string) {
-	p.parent.prog.Send(msgPhaseDone{
+	p.parent.sendMsg(msgPhaseDone{
 		Duration: time.Since(p.start),
 		Desc:     p.desc,
 		Failure:  reason,
@@ -149,7 +178,7 @@ func (p *bubblePhase) Failure(reason string) {
 
 // Success implements Phase
 func (p *bubblePhase) Success() {
-	p.parent.prog.Send(msgPhaseDone{
+	p.parent.sendMsg(msgPhaseDone{
 		Duration: time.Since(p.start),
 		Desc:     p.desc,
 	})
