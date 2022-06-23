@@ -24,15 +24,15 @@ import (
 )
 
 // Update runs the self-update
-func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscovery, cfgFN string) (err error) {
-	if currentVersion == "v0.0.0" {
-		// development builds don't auto update
-		return nil
-	}
+func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscovery, cfgFN string) (didUpdate bool, err error) {
+	// if currentVersion == "v0.0.0" {
+	// 	// development builds don't auto update
+	// 	return false, nil
+	// }
 
 	cv, err := semver.NewVersion(currentVersion)
 	if err != nil {
-		return fmt.Errorf("cannot parse current version %s: %v", currentVersion, err)
+		return false, fmt.Errorf("cannot parse current version %s: %v", currentVersion, err)
 	}
 
 	discoveryCtx, discoveryCancel := context.WithTimeout(ctx, 30*time.Second)
@@ -40,11 +40,11 @@ func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscove
 	latest, err := discovery.DiscoverLatest(discoveryCtx)
 	if err != nil {
 		telemetry.RecordUpdateStatus("failed-discover-latest", "", err)
-		return fmt.Errorf("cannot discover latest version: %v", err)
+		return false, fmt.Errorf("cannot discover latest version: %v", err)
 	}
 
 	if !cv.LessThan(latest.Version) {
-		return nil
+		return false, nil
 	}
 
 	console.Default.Warnf("Newer version found: %s", latest.Name)
@@ -52,12 +52,12 @@ func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscove
 
 	var (
 		arch = strings.ToLower(runtime.GOARCH)
-		os   = strings.ToLower(runtime.GOOS)
+		goos = strings.ToLower(runtime.GOOS)
 	)
 
 	var candidate *Executable
 	for _, p := range latest.Platforms {
-		if strings.ToLower(p.Platform.OS) != os {
+		if strings.ToLower(p.Platform.OS) != goos {
 			continue
 		}
 		if strings.ToLower(p.Platform.Arch) != arch {
@@ -68,7 +68,7 @@ func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscove
 	}
 	if candidate == nil {
 		telemetry.RecordUpdateStatus("failed-no-supported-executable", latest.Name, err)
-		return fmt.Errorf("no supported executable found for version %s (OS: %s, Architecture: %s)", latest.Name, os, arch)
+		return false, fmt.Errorf("no supported executable found for version %s (OS: %s, Architecture: %s)", latest.Name, goos, arch)
 	}
 
 	phase := console.Default.StartPhase("self-update", "downloading from "+candidate.URL)
@@ -83,18 +83,18 @@ func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscove
 	checksum, err := hex.DecodeString(candidate.Checksum)
 	if err != nil {
 		telemetry.RecordUpdateStatus("failed-invalid-checksum", latest.Name, err)
-		return fmt.Errorf("candidate %s has invalid checksum: %w", candidate.URL, err)
+		return false, fmt.Errorf("candidate %s has invalid checksum: %w", candidate.URL, err)
 	}
 
 	if candidate.IsArchive {
 		telemetry.RecordUpdateStatus("failed-is-archive", latest.Name, err)
-		return fmt.Errorf("not supported")
+		return false, fmt.Errorf("not supported")
 	}
 
 	dl, err := discovery.Download(ctx, *candidate)
 	if err != nil {
 		telemetry.RecordUpdateStatus("failed-download", latest.Name, err)
-		return err
+		return false, err
 	}
 	defer dl.Close()
 
@@ -103,11 +103,11 @@ func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscove
 	})
 	if err != nil {
 		telemetry.RecordUpdateStatus("failed-apply", latest.Name, err)
-		return err
+		return false, err
 	}
 
 	telemetry.RecordUpdateStatus("success-apply", latest.Name, nil)
-	return nil
+	return true, nil
 }
 
 type Updater struct {
