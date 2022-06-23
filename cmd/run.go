@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -38,17 +39,6 @@ var runCmd = &cobra.Command{
 		}
 		console.Init(log)
 
-		if rootOpts.cfg.AutoUpdate.Enabled {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-			defer cancel()
-			didUpdate, err := update.Update(ctx, version, update.NewGitHubReleaseDiscovery(ctx), rootOpts.cfg.Filename)
-			if err != nil {
-				log.Warnf("failed to auto-update: %v", err)
-			} else if didUpdate {
-				log.Warnf("Updated to new version - update comes into effect with the next start of run-gp")
-			}
-		}
-
 		cfg, err := getGitpodYaml()
 		if err != nil {
 			return err
@@ -72,6 +62,19 @@ var runCmd = &cobra.Command{
 		shutdown := make(chan struct{})
 		go func() {
 			defer close(shutdown)
+
+			if rootOpts.cfg.AutoUpdate.Enabled {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+				defer cancel()
+				didUpdate, err := update.Update(ctx, version, update.NewGitHubReleaseDiscovery(ctx), rootOpts.cfg.Filename)
+				if errors.Is(err, context.Canceled) {
+					return
+				} else if err != nil {
+					log.Warnf("failed to auto-update: %v", err)
+				} else if didUpdate {
+					log.Warnf("Updated to new version - update comes into effect with the next start of run-gp")
+				}
+			}
 
 			buildingPhase := log.StartPhase("[building]", "workspace image")
 			ref := filepath.Join("workspace-image:latest")

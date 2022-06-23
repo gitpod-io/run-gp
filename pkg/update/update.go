@@ -48,7 +48,7 @@ func Update(ctx context.Context, currentVersion string, discovery ReleaseDiscove
 	}
 
 	console.Default.Warnf("Newer version found: %s", latest.Name)
-	console.Default.Warnf("will automatically upgrade. To disable this, set autoUpdate to false in %s", cfgFN)
+	console.Default.Warnf("will automatically upgrade. To disable this, run \"run-gp config set autoUpdate.enabled false\"")
 
 	var (
 		arch = strings.ToLower(runtime.GOARCH)
@@ -174,6 +174,7 @@ func (g *GitHubReleaseDiscovery) Download(ctx context.Context, e Executable) (io
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/octet-stream")
+	req = req.WithContext(ctx)
 
 	resp, err := g.HTTPClient.Do(req)
 	if err != nil {
