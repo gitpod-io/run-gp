@@ -7,6 +7,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime/assets"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/telemetry"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/update"
 	"github.com/spf13/cobra"
@@ -38,6 +40,19 @@ var runCmd = &cobra.Command{
 			return err
 		}
 		console.Init(log)
+
+		var asts assets.Assets
+		if runOpts.ForceGitpodWorkspceIDE {
+			asts = assets.WithinGitpodWorkspace
+			if !asts.Available() {
+				return fmt.Errorf("Assets are not available. Try calling run-gp without \"--force-gitpod-workspace-ide\"")
+			}
+		} else {
+			asts = assets.Embedded
+			if !asts.Available() {
+				return fmt.Errorf("Assets are not available. This binart was built without prior \"go generate\" run")
+			}
+		}
 
 		cfg, err := getGitpodYaml()
 		if err != nil {
@@ -80,7 +95,8 @@ var runCmd = &cobra.Command{
 			ref := filepath.Join("workspace-image:latest")
 			bldLog := log.Writer()
 			err = rt.BuildImage(ctx, ref, cfg, runtime.BuildOpts{
-				Logs: bldLog,
+				Logs:   bldLog,
+				Assets: asts,
 			})
 			if err != nil {
 				buildingPhase.Failure(err.Error())
@@ -126,6 +142,7 @@ var runCmd = &cobra.Command{
 			opts := runOpts.StartOpts
 			opts.Logs = runLogs
 			opts.SSHPublicKey = publicSSHKey
+			opts.Assets = asts
 			err := rt.StartWorkspace(ctx, ref, cfg, opts)
 			if err != nil {
 				return
@@ -146,8 +163,9 @@ var runCmd = &cobra.Command{
 }
 
 var runOpts struct {
-	StartOpts        runtime.StartOpts
-	SSHPublicKeyPath string
+	StartOpts              runtime.StartOpts
+	SSHPublicKeyPath       string
+	ForceGitpodWorkspceIDE bool
 }
 
 func init() {
@@ -157,4 +175,5 @@ func init() {
 	runCmd.Flags().IntVar(&runOpts.StartOpts.IDEPort, "ide-port", 8080, "port to expose open vs code server")
 	runCmd.Flags().IntVar(&runOpts.StartOpts.SSHPort, "ssh-port", 8082, "port to expose SSH on (set to 0 to disable SSH)")
 	runCmd.Flags().StringVar(&runOpts.SSHPublicKeyPath, "ssh-public-key-path", "~/.ssh/id_rsa.pub", "path to the user's public SSH key")
+	runCmd.Flags().BoolVar(&runOpts.ForceGitpodWorkspceIDE, "force-gitpod-workspace-ide", false, "ignore embedded assets - can only work when running inside a Gitpod workspace")
 }
