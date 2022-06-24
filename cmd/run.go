@@ -116,11 +116,13 @@ var runCmd = &cobra.Command{
 				telemetry.RecordWorkspaceFailure(telemetry.GetGitRemoteOriginURI(rootOpts.Workdir), "running", rt.Name())
 			}
 
-			runLogs := console.Observe(log, console.WorkspaceAccessInfo{
+			runLogs := console.Observe(ctx, log, console.WorkspaceAccessInfo{
 				WorkspaceFolder: filepath.Join("/workspace", cfg.WorkspaceLocation),
 				HTTPPort:        runOpts.StartOpts.IDEPort,
 				SSHPort:         runOpts.StartOpts.SSHPort,
-			}, recordFailure)
+			}, console.ObserveOpts{
+				OnFail: recordFailure,
+			})
 			opts := runOpts.StartOpts
 			opts.Logs = runLogs
 			opts.SSHPublicKey = publicSSHKey

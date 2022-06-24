@@ -31,6 +31,7 @@
 - ✅ VS Code extension installation: VS Code extensions specified in the `.gitpod.yml` will be installed when the workspace starts up. Those extensions are downloaded from [Open VSX](https://open-vsx.org), much like on gitpod.io.
 - ✅ **Tasks** configured in the `.gitpod.yml` will run automatically on startup. 
 - ✅ **Ports** configured in the `.gitpod.yml` will be made available on startup. There is no dynamic port exposure you might expect from a Gitpod workspace.
+- ✅ **Gitpoddification Dev Loop** using `run-gp` preflight to test the image build and tasks in a `.gitpod.yml` file.
 - ✅ **Airgapped startup** so that other the image that's configured for the workspace no external assets need to be downloaded. It's all in the `run-gp` binary.
 - ✅ **Auto-Update** which keeps `run-gp` up to date without you having to worry about it. This can be disabled - see the Config section below.
 - ⚠️ **Docker-in-Docker** depends on the environment you use `run-gp` in. It does not work yet on MacOS and when `run-gp` is used from within a Gitpod workspace.
@@ -64,6 +65,11 @@
   Once the workspace is ready, open the URL displayed in the terminal.
   </li>
 </ol>
+
+## Commands
+`run-gp` supports two main commands:
+1. `run` which opens starts a dev environment meant for interactive use. This is default command if you just call `run-gp`. Use `run-gp run --help` to see all options you can pass here.
+2. `preflight` which builds the workspace image and runs the tasks as if the workspace were a prebuild. Use `--all-commands` to run all commands. Note that `run-gp` will not exit in this case.
 
 ## Configuration
 `run-gp` does not have a lot of configuration settings, as most thinsg are determined by the `.gitpod.yml`. You can find the location of the configuration file using

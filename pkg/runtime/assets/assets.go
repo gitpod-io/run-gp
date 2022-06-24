@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -44,6 +45,83 @@ type AssetPaths interface {
 	IDEPath() string
 
 	Close() error
+}
+
+type NoopIDE struct {
+	Assets Assets
+}
+
+// returns the image environment variables embedded which would come from the IDE and supervisor image
+func (np NoopIDE) EnvVars() []string { return nil }
+
+// Access makes the assets available to be mounted into the container
+func (np NoopIDE) Access() (AssetPaths, error) {
+	actual, err := np.Assets.Access()
+	if err != nil {
+		return nil, err
+	}
+
+	idePath, err := np.prepIDE()
+	if err != nil {
+		return nil, err
+	}
+
+	return compositeAssetPaths{
+		supervisor: actual.Supervisor(),
+		idePath:    idePath,
+		closer: []io.Closer{
+			actual,
+			closerFunc(func() error { return os.RemoveAll(idePath) }),
+		},
+	}, nil
+}
+
+type closerFunc func() error
+
+func (c closerFunc) Close() error {
+	return c()
+}
+
+func (NoopIDE) prepIDE() (path string, err error) {
+	tmpdir, err := os.MkdirTemp("", "rungp-noopide-*")
+	if err != nil {
+		return "", err
+	}
+
+	var errors []error
+	errors = append(errors, ioutil.WriteFile(filepath.Join(tmpdir, "startup.sh"), []byte("#!/bin/sh\nsleep infinity\n"), 0644))
+	errors = append(errors, ioutil.WriteFile(filepath.Join(tmpdir, "supervisor-ide-config.json"), []byte(`{"entrypoint": "/ide/startup.sh"}`), 0644))
+	for _, err := range errors {
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return tmpdir, nil
+}
+
+// Available returns true if this asset set is available
+func (np NoopIDE) Available() bool {
+	return np.Assets.Available()
+}
+
+type compositeAssetPaths struct {
+	supervisor string
+	idePath    string
+
+	closer []io.Closer
+}
+
+func (ca compositeAssetPaths) Supervisor() string { return ca.supervisor }
+func (ca compositeAssetPaths) IDEPath() string    { return ca.idePath }
+func (ca compositeAssetPaths) Close() error {
+	for _, c := range ca.closer {
+		err := c.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type localAssetPaths struct {

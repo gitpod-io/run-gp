@@ -216,6 +216,9 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 	for k, v := range envs {
 		tmpf.WriteString(fmt.Sprintf("%s=%s\n", k, v))
 	}
+	for _, env := range opts.AdditionalEnvVars {
+		tmpf.WriteString(env + "\n")
+	}
 	tmpf.Close()
 	args = append(args, "--env-file", tmpf.Name())
 	defer os.Remove(tmpf.Name())
