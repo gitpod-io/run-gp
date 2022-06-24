@@ -12,6 +12,7 @@ import (
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime/assets"
 )
 
 type SupportedRuntime int
@@ -64,10 +65,6 @@ type Runtime interface {
 	StartWorkspace(ctx context.Context, imageRef string, cfg *gitpod.GitpodConfig, opts StartOpts) error
 }
 
-type Builder interface {
-	BuildImage(ctx context.Context, logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error)
-}
-
 type StartOpts struct {
 	PortOffset       int
 	NoPortForwarding bool
@@ -75,4 +72,14 @@ type StartOpts struct {
 	SSHPort          int
 	SSHPublicKey     string
 	Logs             io.WriteCloser
+	Assets           assets.Assets
+}
+
+type Builder interface {
+	BuildImage(ctx context.Context, ref string, cfg *gitpod.GitpodConfig, opts BuildOpts) (err error)
+}
+
+type BuildOpts struct {
+	Assets assets.Assets
+	Logs   io.WriteCloser
 }

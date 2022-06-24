@@ -18,6 +18,7 @@ import (
 	"time"
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
+	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime/assets"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/telemetry"
 )
@@ -32,7 +33,7 @@ func (dr docker) Name() string {
 }
 
 // BuildImage builds the workspace image
-func (dr docker) BuildImage(ctx context.Context, logs io.WriteCloser, ref string, cfg *gitpod.GitpodConfig) (err error) {
+func (dr docker) BuildImage(ctx context.Context, ref string, cfg *gitpod.GitpodConfig, opts BuildOpts) (err error) {
 	tmpdir, err := os.MkdirTemp("", "rungp-*")
 	if err != nil {
 		return err
@@ -45,21 +46,14 @@ func (dr docker) BuildImage(ctx context.Context, logs io.WriteCloser, ref string
 		}
 	}()
 
-	var (
-		assetsHeader string
-		assetsCmds   string
-	)
-	if assets.IsEmbedded() {
-		err := assets.Extract(tmpdir)
-		if err != nil {
-			return err
-		}
-		assetsCmds = `
-		COPY supervisor/ /.supervisor/
-		COPY ide/ /ide/
-		`
-	} else {
-		return fmt.Errorf("missing assets - please make sure you ran go:generate before")
+	logs := opts.Logs
+	if logs == nil {
+		logs = console.DiscardLogs
+	}
+
+	actualAssets := opts.Assets
+	if actualAssets == nil {
+		actualAssets = assets.Embedded
 	}
 
 	var baseimage string
@@ -88,17 +82,16 @@ func (dr docker) BuildImage(ctx context.Context, logs io.WriteCloser, ref string
 		return fmt.Errorf("unsupported image: %v", img)
 	}
 
-	df := `
-	` + assetsHeader + `
-	` + baseimage + `
-	` + assetsCmds + `
+	df := baseimage + `
 
 	USER root
 	RUN rm /usr/bin/gp-vncsession || true
 	RUN mkdir -p /workspace && \
 		chown -R 33333:33333 /workspace
 	`
-	df += strings.Join(assetEnvVars(assets.ImageEnvVars()), "\n")
+	if actualAssets != nil {
+		df += strings.Join(assetEnvVars(actualAssets.EnvVars()), "\n")
+	}
 
 	fmt.Fprintf(logs, "\nDockerfile:%s\n", df)
 
@@ -164,8 +157,34 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		return fmt.Errorf("missing workspace location")
 	}
 
+	actualAssets := opts.Assets
+	if actualAssets == nil {
+		actualAssets = assets.Embedded
+	}
+	if !actualAssets.Available() {
+		return fmt.Errorf("no assets available - cannot start workspace")
+	}
+	aps, err := actualAssets.Access()
+	if err != nil {
+		return fmt.Errorf("error accessing assets: %v", err)
+	}
+	defer aps.Close()
+
 	name := fmt.Sprintf("rungp-%d", time.Now().UnixNano())
-	args := []string{"run", "--rm", "--user", "root", "--privileged", "-p", fmt.Sprintf("%d:22999", opts.IDEPort), "-v", fmt.Sprintf("%s:%s", dr.Workdir, filepath.Join("/workspace", cfg.CheckoutLocation)), "--name", name}
+	args := []string{
+		"run",
+		"--rm",
+		"--user", "root",
+		"--privileged",
+		"-v", fmt.Sprintf("%s:%s", dr.Workdir, filepath.Join("/workspace", cfg.CheckoutLocation)),
+		"-v", fmt.Sprintf("%s:%s", aps.IDEPath(), "/ide"),
+		"-v", fmt.Sprintf("%s:%s", aps.Supervisor(), "/.supervisor"),
+		"--name", name,
+	}
+
+	if opts.IDEPort > 0 {
+		args = append(args, "-p", fmt.Sprintf("%d:22999", opts.IDEPort))
+	}
 
 	if (runtime.GOOS == "darwin" || runtime.GOOS == "linux") && dr.Command == "docker" {
 		args = append(args, "-v", "/var/run/docker.sock:/var/run/docker.sock")

@@ -27,8 +27,74 @@ var assetPack embed.FS
 //go:embed images.json
 var imagesJSON []byte
 
-// ImageEnvVars returns the image environment variables embedded in the images.json file
-func ImageEnvVars() []string {
+type Assets interface {
+	// returns the image environment variables embedded which would come from the IDE and supervisor image
+	EnvVars() []string
+
+	// Access makes the assets available to be mounted into the container
+	Access() (AssetPaths, error)
+
+	// Available returns true if this asset set is available
+	Available() bool
+}
+
+// AssetPaths represents assets on the disk
+type AssetPaths interface {
+	Supervisor() string
+	IDEPath() string
+
+	Close() error
+}
+
+type localAssetPaths struct {
+	supervisor string
+	idePath    string
+}
+
+func (la localAssetPaths) Supervisor() string { return la.supervisor }
+func (la localAssetPaths) IDEPath() string    { return la.idePath }
+func (la localAssetPaths) Close() error       { return nil }
+
+// WithinGitpodWorkspace pull assets from within a Gitpod workspace.
+var WithinGitpodWorkspace Assets = &localAssets{
+	Paths: localAssetPaths{
+		supervisor: "/.supervisor",
+		idePath:    "/ide",
+	},
+}
+
+// localAssets ships assets from a localAssets directory.
+// This only works on Linux.
+type localAssets struct {
+	Paths AssetPaths
+}
+
+func (localAssets) EnvVars() []string { return []string{} }
+
+func (l localAssets) Available() bool {
+	supervisor := l.Paths.Supervisor()
+	if stat, err := os.Stat(supervisor); supervisor != "" && (err != nil || !stat.IsDir()) {
+		return false
+	}
+	ide := l.Paths.IDEPath()
+	if stat, err := os.Stat(ide); ide != "" && (err != nil || !stat.IsDir()) {
+		return false
+	}
+
+	return true
+}
+
+func (l localAssets) Access() (AssetPaths, error) {
+	return l.Paths, nil
+}
+
+// Embedded are the assets embedded in this binary
+var Embedded Assets = &embeddedAssets{}
+
+type embeddedAssets struct{}
+
+// EnvVars returns the image environment variables embedded in the images.json file
+func (*embeddedAssets) EnvVars() []string {
 	var res struct {
 		Envs []string `json:"envs"`
 	}
@@ -36,8 +102,8 @@ func ImageEnvVars() []string {
 	return res.Envs
 }
 
-// IsEmbedded returns true if the assets are embedded in this binary
-func IsEmbedded() bool {
+// Available returns true if the assets are embedded in this binary
+func (*embeddedAssets) Available() bool {
 	f, err := assetPack.Open("assets.tar.gz")
 	if err != nil {
 		return false
@@ -46,16 +112,32 @@ func IsEmbedded() bool {
 	return true
 }
 
-// Extract extracts the assets to the destionation directory
-func Extract(dest string) error {
+// CopyTo extracts the assets to the destionation directory
+func (*embeddedAssets) Access() (AssetPaths, error) {
+	tmpdir, err := os.MkdirTemp("", "rungp-*")
+	if err != nil {
+		return nil, err
+	}
+
 	f, err := assetPack.Open("assets.tar.gz")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer f.Close()
 
-	return untar(f, dest)
+	err = untar(f, tmpdir)
+	if err != nil {
+		return nil, err
+	}
+
+	return extractedAssetPaths(tmpdir), nil
 }
+
+type extractedAssetPaths string
+
+func (ea extractedAssetPaths) Supervisor() string { return filepath.Join(string(ea), "supervisor") }
+func (ea extractedAssetPaths) IDEPath() string    { return filepath.Join(string(ea), "ide") }
+func (ea extractedAssetPaths) Close() error       { return os.RemoveAll((string(ea))) }
 
 // untar is copied from https://cs.opensource.google/go/x/build/+/2838fbb2:internal/untar/untar.go;l=27
 func untar(r io.Reader, dir string) (err error) {

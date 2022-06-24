@@ -39,6 +39,8 @@ type Phase interface {
 	Failure(reason string)
 }
 
+var DiscardLogs io.WriteCloser = &noopWriteCloser{io.Discard}
+
 type ConsoleLog struct {
 	w io.Writer
 }

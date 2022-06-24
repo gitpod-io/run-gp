@@ -51,7 +51,7 @@ var runCmd = &cobra.Command{
 			cfg.WorkspaceLocation = cfg.CheckoutLocation
 		}
 
-		runtime, err := getRuntime(rootOpts.Workdir)
+		rt, err := getRuntime(rootOpts.Workdir)
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,9 @@ var runCmd = &cobra.Command{
 			buildingPhase := log.StartPhase("[building]", "workspace image")
 			ref := filepath.Join("workspace-image:latest")
 			bldLog := log.Writer()
-			err = runtime.BuildImage(ctx, bldLog, ref, cfg)
+			err = rt.BuildImage(ctx, ref, cfg, runtime.BuildOpts{
+				Logs: bldLog,
+			})
 			if err != nil {
 				buildingPhase.Failure(err.Error())
 				return
@@ -111,7 +113,7 @@ var runCmd = &cobra.Command{
 					return
 				}
 
-				telemetry.RecordWorkspaceFailure(telemetry.GetGitRemoteOriginURI(rootOpts.Workdir), "running", runtime.Name())
+				telemetry.RecordWorkspaceFailure(telemetry.GetGitRemoteOriginURI(rootOpts.Workdir), "running", rt.Name())
 			}
 
 			runLogs := console.Observe(log, console.WorkspaceAccessInfo{
@@ -122,7 +124,7 @@ var runCmd = &cobra.Command{
 			opts := runOpts.StartOpts
 			opts.Logs = runLogs
 			opts.SSHPublicKey = publicSSHKey
-			err := runtime.StartWorkspace(ctx, ref, cfg, opts)
+			err := rt.StartWorkspace(ctx, ref, cfg, opts)
 			if err != nil {
 				return
 			}
