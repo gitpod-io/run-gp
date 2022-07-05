@@ -93,7 +93,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&rootOpts.Workdir, "workdir", "w", wd, "Path to the working directory")
 	rootCmd.PersistentFlags().StringVarP(&rootOpts.GitpodYamlFN, "gitpod-yaml", "f", ".gitpod.yml", "path to the .gitpod.yml file relative to the working directory")
 	rootCmd.PersistentFlags().BoolVarP(&rootOpts.Verbose, "verbose", "v", false, "verbose output")
-	rootCmd.PersistentFlags().BoolVar(&rootOpts.DisableTelemetry, "disable-telemetry", false, "disable telemetry")
+	rootCmd.PersistentFlags().BoolVar(&rootOpts.DisableTelemetry, "disable-telemetry", os.Getenv("DO_NOT_TRACK") == "1", "disable telemetry")
 	rootCmd.PersistentFlags().StringVar(&rootOpts.Runtime, "runtime", "auto", "container runtime to use")
 }
 
