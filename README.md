@@ -84,6 +84,8 @@ By default `run-gp` will send anonymous telemetry. We never send identifiable de
 run-gp config set telemetry.enabled false
 ```
 
+`run-gp` respects [Console Do Not Track](https://consoledonottrack.com/), i.e. `export DO_NOT_TRACK=1` will also disable telemetry.
+
 ## Frequently Asked Questions
 
 - **This readme refers to `run-gp` as experiment. What does that mean?**
