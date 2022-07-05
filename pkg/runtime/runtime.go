@@ -66,15 +66,32 @@ type Runtime interface {
 }
 
 type StartOpts struct {
-	PortOffset        int
-	NoPortForwarding  bool
-	IDEPort           int
-	SSHPort           int
+	Network           networkOpts
 	SSHPublicKey      string
 	Logs              io.WriteCloser
 	Assets            assets.Assets
 	AdditionalEnvVars []string
 }
+
+type networkOpts interface {
+	sealedType()
+}
+
+type NoNetwork struct{}
+
+func (NoNetwork) sealedType() {}
+
+type HostNetwork struct{}
+
+func (HostNetwork) sealedType() {}
+
+type NamespacedNetwork struct {
+	PortOffset int
+	IDEPort    int
+	SSHPort    int
+}
+
+func (NamespacedNetwork) sealedType() {}
 
 type Builder interface {
 	BuildImage(ctx context.Context, ref string, cfg *gitpod.GitpodConfig, opts BuildOpts) (err error)

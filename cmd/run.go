@@ -134,15 +134,22 @@ var runCmd = &cobra.Command{
 
 			runLogs := console.Observe(ctx, log, console.WorkspaceAccessInfo{
 				WorkspaceFolder: filepath.Join("/workspace", cfg.WorkspaceLocation),
-				HTTPPort:        runOpts.StartOpts.IDEPort,
-				SSHPort:         runOpts.StartOpts.SSHPort,
+				HTTPPort:        runOpts.IDEPort,
+				SSHPort:         runOpts.SSHPort,
 			}, console.ObserveOpts{
 				OnFail: recordFailure,
 			})
-			opts := runOpts.StartOpts
-			opts.Logs = runLogs
-			opts.SSHPublicKey = publicSSHKey
-			opts.Assets = asts
+
+			opts := runtime.StartOpts{
+				Network: runtime.NamespacedNetwork{
+					PortOffset: runOpts.PortOffset,
+					IDEPort:    runOpts.IDEPort,
+					SSHPort:    runOpts.SSHPort,
+				},
+				Logs:         runLogs,
+				SSHPublicKey: publicSSHKey,
+				Assets:       asts,
+			}
 			err := rt.StartWorkspace(ctx, ref, cfg, opts)
 			if err != nil {
 				return
@@ -163,17 +170,21 @@ var runCmd = &cobra.Command{
 }
 
 var runOpts struct {
-	StartOpts              runtime.StartOpts
+	NoPortForwarding bool
+	PortOffset       int
+	IDEPort          int
+	SSHPort          int
+
 	SSHPublicKeyPath       string
 	ForceGitpodWorkspceIDE bool
 }
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-	runCmd.Flags().BoolVar(&runOpts.StartOpts.NoPortForwarding, "no-port-forwarding", false, "disable port-forwarding for ports in the .gitpod.yml")
-	runCmd.Flags().IntVar(&runOpts.StartOpts.PortOffset, "port-offset", 0, "shift exposed ports by this number")
-	runCmd.Flags().IntVar(&runOpts.StartOpts.IDEPort, "ide-port", 8080, "port to expose open vs code server")
-	runCmd.Flags().IntVar(&runOpts.StartOpts.SSHPort, "ssh-port", 8082, "port to expose SSH on (set to 0 to disable SSH)")
+	runCmd.Flags().BoolVar(&runOpts.NoPortForwarding, "no-port-forwarding", false, "disable port-forwarding for ports in the .gitpod.yml")
+	runCmd.Flags().IntVar(&runOpts.PortOffset, "port-offset", 0, "shift exposed ports by this number")
+	runCmd.Flags().IntVar(&runOpts.IDEPort, "ide-port", 8080, "port to expose open vs code server")
+	runCmd.Flags().IntVar(&runOpts.SSHPort, "ssh-port", 8082, "port to expose SSH on (set to 0 to disable SSH)")
 	runCmd.Flags().StringVar(&runOpts.SSHPublicKeyPath, "ssh-public-key-path", "~/.ssh/id_rsa.pub", "path to the user's public SSH key")
 	runCmd.Flags().BoolVar(&runOpts.ForceGitpodWorkspceIDE, "force-gitpod-workspace-ide", false, "ignore embedded assets - can only work when running inside a Gitpod workspace")
 }

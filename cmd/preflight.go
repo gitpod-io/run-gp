@@ -36,7 +36,9 @@ var preflightCmd = &cobra.Command{
 		if !asts.Available() {
 			asts = assets.Embedded
 		}
-		asts = assets.NoopIDE{Assets: asts}
+
+		idePort := 9999
+		asts = assets.NoopIDE{Assets: asts, SupervisorPort: idePort}
 
 		cfg, err := getGitpodYaml()
 		if err != nil {
@@ -77,8 +79,6 @@ var preflightCmd = &cobra.Command{
 			bldLog.Discard()
 			buildingPhase.Success()
 
-			idePort := 9999
-
 			var envVars []string
 			if !preflightOpts.AllCommands {
 				envVars = append(envVars, "GITPOD_HEADLESS=true")
@@ -96,9 +96,7 @@ var preflightCmd = &cobra.Command{
 				},
 			})
 			err := rt.StartWorkspace(ctx, ref, cfg, runtime.StartOpts{
-				NoPortForwarding:  true,
-				IDEPort:           idePort,
-				SSHPort:           0,
+				Network:           runtime.HostNetwork{},
 				Logs:              runLogs,
 				Assets:            asts,
 				AdditionalEnvVars: envVars,

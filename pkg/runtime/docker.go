@@ -179,11 +179,25 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		"-v", fmt.Sprintf("%s:%s", dr.Workdir, filepath.Join("/workspace", cfg.CheckoutLocation)),
 		"-v", fmt.Sprintf("%s:%s", aps.IDEPath(), "/ide"),
 		"-v", fmt.Sprintf("%s:%s", aps.Supervisor(), "/.supervisor"),
+		"-v", fmt.Sprintf("%s:%s", aps.SupervisorConfig(), "/.supervisor/supervisor-config.json"),
 		"--name", name,
 	}
 
-	if opts.IDEPort > 0 {
-		args = append(args, "-p", fmt.Sprintf("%d:22999", opts.IDEPort))
+	switch nw := opts.Network.(type) {
+	case NamespacedNetwork:
+		if nw.IDEPort > 0 {
+			args = append(args, "-p", fmt.Sprintf("%d:22999", nw.IDEPort))
+		}
+		if nw.SSHPort > 0 {
+			args = append(args, "-p", fmt.Sprintf("%d:23001", nw.SSHPort))
+		}
+		for _, p := range cfg.Ports {
+			args = append(args, "-p", fmt.Sprintf("%d:%d", p.Port.(int)+nw.PortOffset, p.Port))
+		}
+	case HostNetwork:
+		args = append(args, "--net", "host")
+	case NoNetwork:
+		// do nothing
 	}
 
 	if (runtime.GOOS == "darwin" || runtime.GOOS == "linux") && dr.Command == "docker" {
@@ -233,15 +247,6 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		args = append(args, "-v", fmt.Sprintf("%s:/home/gitpod/.ssh/authorized_keys", tmpf.Name()))
 		defer os.Remove(tmpf.Name())
 	}
-	if opts.SSHPort > 0 {
-		args = append(args, "-p", fmt.Sprintf("%d:23001", opts.SSHPort))
-	}
-
-	if !opts.NoPortForwarding {
-		for _, p := range cfg.Ports {
-			args = append(args, "-p", fmt.Sprintf("%d:%d", p.Port.(int)+opts.PortOffset, p.Port))
-		}
-	}
 
 	args = append(args, workspaceImage)
 	args = append(args, "/.supervisor/supervisor", "run", "--rungp")
@@ -249,6 +254,8 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 	if telemetry.Enabled() {
 		telemetry.RecordWorkspaceStarted(telemetry.GetGitRemoteOriginURI(dr.Workdir), dr.Command)
 	}
+
+	console.Default.Debugf("running docker: %v", args)
 
 	cmd := exec.Command(dr.Command, args...)
 	cmd.Dir = dr.Workdir

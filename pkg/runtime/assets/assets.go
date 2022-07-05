@@ -44,11 +44,14 @@ type AssetPaths interface {
 	Supervisor() string
 	IDEPath() string
 
+	SupervisorConfig() string
+
 	Close() error
 }
 
 type NoopIDE struct {
-	Assets Assets
+	Assets         Assets
+	SupervisorPort int
 }
 
 // returns the image environment variables embedded which would come from the IDE and supervisor image
@@ -67,11 +70,12 @@ func (np NoopIDE) Access() (AssetPaths, error) {
 	}
 
 	return compositeAssetPaths{
-		supervisor: actual.Supervisor(),
-		idePath:    idePath,
+		supervisor:       actual.Supervisor(),
+		supervisorConfig: filepath.Join(idePath, "supervisor-config.json"),
+		idePath:          idePath,
 		closer: []io.Closer{
 			actual,
-			closerFunc(func() error { return os.RemoveAll(idePath) }),
+			// closerFunc(func() error { return os.RemoveAll(idePath) }),
 		},
 	}, nil
 }
@@ -82,7 +86,7 @@ func (c closerFunc) Close() error {
 	return c()
 }
 
-func (NoopIDE) prepIDE() (path string, err error) {
+func (np NoopIDE) prepIDE() (path string, err error) {
 	tmpdir, err := os.MkdirTemp("", "rungp-noopide-*")
 	if err != nil {
 		return "", err
@@ -91,6 +95,15 @@ func (NoopIDE) prepIDE() (path string, err error) {
 	var errors []error
 	errors = append(errors, ioutil.WriteFile(filepath.Join(tmpdir, "startup.sh"), []byte("#!/bin/sh\nsleep infinity\n"), 0644))
 	errors = append(errors, ioutil.WriteFile(filepath.Join(tmpdir, "supervisor-ide-config.json"), []byte(`{"entrypoint": "/ide/startup.sh"}`), 0644))
+	errors = append(errors, ioutil.WriteFile(filepath.Join(tmpdir, "supervisor-config.json"), []byte(fmt.Sprintf(`
+	  {
+		"ideConfigLocation": "/ide/supervisor-ide-config.json",
+		"desktopIdeConfigLocation": "/ide-desktop/supervisor-ide-config.json",
+		"frontendLocation": "/.supervisor/frontend/",
+		"apiEndpointPort": %d,
+		"sshPort": 23001
+	  }
+	`, np.SupervisorPort)), 0644))
 	for _, err := range errors {
 		if err != nil {
 			return "", err
@@ -106,14 +119,16 @@ func (np NoopIDE) Available() bool {
 }
 
 type compositeAssetPaths struct {
-	supervisor string
-	idePath    string
+	supervisor       string
+	supervisorConfig string
+	idePath          string
 
 	closer []io.Closer
 }
 
-func (ca compositeAssetPaths) Supervisor() string { return ca.supervisor }
-func (ca compositeAssetPaths) IDEPath() string    { return ca.idePath }
+func (ca compositeAssetPaths) Supervisor() string       { return ca.supervisor }
+func (ca compositeAssetPaths) IDEPath() string          { return ca.idePath }
+func (ca compositeAssetPaths) SupervisorConfig() string { return ca.supervisorConfig }
 func (ca compositeAssetPaths) Close() error {
 	for _, c := range ca.closer {
 		err := c.Close()
@@ -125,19 +140,22 @@ func (ca compositeAssetPaths) Close() error {
 }
 
 type localAssetPaths struct {
-	supervisor string
-	idePath    string
+	supervisor       string
+	supervisorConfig string
+	idePath          string
 }
 
-func (la localAssetPaths) Supervisor() string { return la.supervisor }
-func (la localAssetPaths) IDEPath() string    { return la.idePath }
-func (la localAssetPaths) Close() error       { return nil }
+func (la localAssetPaths) Supervisor() string       { return la.supervisor }
+func (la localAssetPaths) SupervisorConfig() string { return la.supervisorConfig }
+func (la localAssetPaths) IDEPath() string          { return la.idePath }
+func (la localAssetPaths) Close() error             { return nil }
 
 // WithinGitpodWorkspace pull assets from within a Gitpod workspace.
 var WithinGitpodWorkspace Assets = &localAssets{
 	Paths: localAssetPaths{
-		supervisor: "/.supervisor",
-		idePath:    "/ide",
+		supervisor:       "/.supervisor",
+		supervisorConfig: "/.supervisor/supervisor-config.json",
+		idePath:          "/ide",
 	},
 }
 
@@ -214,8 +232,11 @@ func (*embeddedAssets) Access() (AssetPaths, error) {
 type extractedAssetPaths string
 
 func (ea extractedAssetPaths) Supervisor() string { return filepath.Join(string(ea), "supervisor") }
-func (ea extractedAssetPaths) IDEPath() string    { return filepath.Join(string(ea), "ide") }
-func (ea extractedAssetPaths) Close() error       { return os.RemoveAll((string(ea))) }
+func (ea extractedAssetPaths) SupervisorConfig() string {
+	return filepath.Join(string(ea), "supervisor", "supervisor-config.json")
+}
+func (ea extractedAssetPaths) IDEPath() string { return filepath.Join(string(ea), "ide") }
+func (ea extractedAssetPaths) Close() error    { return os.RemoveAll((string(ea))) }
 
 // untar is copied from https://cs.opensource.google/go/x/build/+/2838fbb2:internal/untar/untar.go;l=27
 func untar(r io.Reader, dir string) (err error) {
