@@ -75,4 +75,5 @@ type StartOpts struct {
 	SSHPort          int
 	SSHPublicKey     string
 	Logs             io.WriteCloser
+	DotfileRepo      string
 }

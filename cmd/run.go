@@ -152,5 +152,6 @@ func init() {
 	runCmd.Flags().IntVar(&runOpts.StartOpts.PortOffset, "port-offset", 0, "shift exposed ports by this number")
 	runCmd.Flags().IntVar(&runOpts.StartOpts.IDEPort, "ide-port", 8080, "port to expose open vs code server")
 	runCmd.Flags().IntVar(&runOpts.StartOpts.SSHPort, "ssh-port", 8082, "port to expose SSH on (set to 0 to disable SSH)")
+	runCmd.Flags().StringVar(&runOpts.StartOpts.DotfileRepo, "dotfile-repo", os.Getenv("RUNGP_DOTFILE_REPOSITORY"), "Git clone URL for a dotfile repository ($RUNGP_DOTFILE_REPOSITORY)")
 	runCmd.Flags().StringVar(&runOpts.SSHPublicKeyPath, "ssh-public-key-path", "~/.ssh/id_rsa.pub", "path to the user's public SSH key")
 }

@@ -189,6 +189,7 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		"GITPOD_HOST":                    "gitpod.local",
 		"THEIA_SUPERVISOR_TOKENS":        `{"token": "invalid","kind": "gitpod","host": "gitpod.local","scope": [],"expiryDate": ` + time.Now().Format(time.RFC3339) + `,"reuse": 2}`,
 		"VSX_REGISTRY_URL":               "https://https://open-vsx.org/",
+		"SUPERVISOR_DOTFILE_REPO":        opts.DotfileRepo,
 	}
 	tmpf, err := ioutil.TempFile("", "rungp-*.env")
 	if err != nil {
