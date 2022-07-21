@@ -1,7 +1,7 @@
 {
-  "supervisor": "eu.gcr.io/gitpod-core-dev/build/supervisor:commit-35a43c0a8d59210e3a46bc73cef4023d515285a1",
-  "gitpod-code": "eu.gcr.io/gitpod-core-dev/build/ide/code:commit-afa4a406cf740691ec864cdfd4595057e03f36a0",
-  "open-vscode": "docker.io/gitpod/openvscode-server:latest@sha256:3963ff5a3dca6c743f6697807355dbf6d224e5da165e897557ac29b269efda66",
+  "supervisor": "eu.gcr.io/gitpod-core-dev/build/supervisor:commit-3aa56e64b4e4a25b58ae04d17b93eb59b24c8e5a",
+  "gitpod-code": "eu.gcr.io/gitpod-core-dev/build/ide/code:commit-149e75d82f56e90b8e46010e3f1ea323e06fc3d4",
+  "open-vscode": "docker.io/gitpod/openvscode-server:latest@sha256:c1ea6e1b80c5d07b6c6a83207df57d6dfe84a4d54739e87fd868054092dffac5",
   "envs": [
     "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     "GITPOD_ENV_APPEND_PATH=/ide/bin/remote-cli:",

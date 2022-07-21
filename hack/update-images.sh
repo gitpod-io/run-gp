@@ -5,9 +5,19 @@
 
 
 if [ $# -eq 0 ]; then
-    echo "usage: $0 <gitpod-version>"
-    exit 1
+    echo "use \"$0 <gitpod-version>\" to pass a version - trying to find one now"
+    if [ ! -f "/tmp/werft" ]; then
+        curl -L https://github.com/csweichel/werft/releases/download/v0.3.5/werft-client-linux-amd64.tar.gz | tar xz; chmod +x werft-client-linux-amd64 && mv werft-client-linux-amd64 /tmp/werft
+    fi
+
+    version="$(/tmp/werft --host werft-grpc.gitpod-dev.com:443 --tls-mode system job list  --order created:desc --limit 100 -o json | jq -r '.result[] | select((.phase == "PHASE_DONE") and (.metadata.repository.owner == "gitpod-io") and (.metadata.repository.repo == "gitpod") and (.metadata.repository.ref == "refs/heads/main") and (.conditions.success == true)) | .results[] | .payload'  | grep /versions: | head -n 1)"
+    echo "found version: $version"
+    echo
+else
+    version="eu.gcr.io/gitpod-core-dev/build/versions:$1"
 fi
+
+
 
 temp_file="$(mktemp)"
 
@@ -39,4 +49,4 @@ EOF
 echo "$temp_file"
 
 wd="$(realpath $(dirname $0)/../pkg/runtime/assets)"
-docker run --rm -it -v "$wd:/wd" -v "$temp_file:/run.sh" "eu.gcr.io/gitpod-core-dev/build/versions:$1" sh /run.sh
+docker run --rm -it -v "$wd:/wd" -v "$temp_file:/run.sh" "$version" sh /run.sh
