@@ -23,7 +23,7 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "rungp",
+	Use:   "run-gp",
 	Short: "start a local dev-environment using a .gitpdod.yaml file",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		cfg, err := config.ReadInConfig()
