@@ -71,6 +71,7 @@ type Builder interface {
 type StartOpts struct {
 	PortOffset       int
 	NoPortForwarding bool
+	NoStart          bool
 	IDEPort          int
 	SSHPort          int
 	SSHPublicKey     string

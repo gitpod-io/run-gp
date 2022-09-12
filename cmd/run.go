@@ -86,6 +86,9 @@ var runCmd = &cobra.Command{
 			}
 			bldLog.Discard()
 			buildingPhase.Success()
+			if runOpts.StartOpts.NoStart {
+			    return;
+			}
 
 			var (
 				publicSSHKey   string
@@ -149,6 +152,7 @@ var runOpts struct {
 func init() {
 	rootCmd.AddCommand(runCmd)
 	runCmd.Flags().BoolVar(&runOpts.StartOpts.NoPortForwarding, "no-port-forwarding", false, "disable port-forwarding for ports in the .gitpod.yml")
+	runCmd.Flags().BoolVar(&runOpts.StartOpts.NoStart, "do-not-start", false, "create the image only, do not start.")
 	runCmd.Flags().IntVar(&runOpts.StartOpts.PortOffset, "port-offset", 0, "shift exposed ports by this number")
 	runCmd.Flags().IntVar(&runOpts.StartOpts.IDEPort, "ide-port", 8080, "port to expose open vs code server")
 	runCmd.Flags().IntVar(&runOpts.StartOpts.SSHPort, "ssh-port", 8082, "port to expose SSH on (set to 0 to disable SSH)")
