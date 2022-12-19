@@ -7,7 +7,6 @@ package cmd
 import (
 	"context"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,7 +99,7 @@ var runCmd = &cobra.Command{
 				publicSSHKeyFN = filepath.Join(home, strings.TrimPrefix(publicSSHKeyFN, "~"))
 			}
 
-			if fc, err := ioutil.ReadFile(publicSSHKeyFN); err == nil {
+			if fc, err := os.ReadFile(publicSSHKeyFN); err == nil {
 				publicSSHKey = string(fc)
 			} else if rootOpts.Verbose {
 				log.Warnf("cannot read public SSH key from %s: %v", publicSSHKeyFN, err)
@@ -124,6 +123,7 @@ var runCmd = &cobra.Command{
 			opts.SSHPublicKey = publicSSHKey
 			err := runtime.StartWorkspace(ctx, ref, cfg, opts)
 			if err != nil {
+				log.Warnf("unable to Start Workspace: %+v", err)
 				return
 			}
 			runLogs.Discard()
