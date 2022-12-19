@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -78,7 +77,7 @@ func (dr docker) BuildImage(ctx context.Context, logs io.WriteCloser, ref string
 		if err != nil {
 			return err
 		}
-		fc, err = ioutil.ReadFile(filepath.Join(dr.Workdir, obj.Context, obj.File))
+		fc, err = os.ReadFile(filepath.Join(dr.Workdir, obj.Context, obj.File))
 		if err != nil {
 			// TODO(cw): make error actionable
 			return err
@@ -102,7 +101,7 @@ func (dr docker) BuildImage(ctx context.Context, logs io.WriteCloser, ref string
 
 	fmt.Fprintf(logs, "\nDockerfile:%s\n", df)
 
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "Dockerfile"), []byte(df), 0644)
+	err = os.WriteFile(filepath.Join(tmpdir, "Dockerfile"), []byte(df), 0644)
 	if err != nil {
 		return err
 	}
@@ -195,7 +194,7 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		"THEIA_SUPERVISOR_TOKENS":        `{"token": "invalid","kind": "gitpod","host": "gitpod.local","scope": [],"expiryDate": ` + time.Now().Format(time.RFC3339) + `,"reuse": 2}`,
 		"VSX_REGISTRY_URL":               "https://https://open-vsx.org/",
 	}
-	tmpf, err := ioutil.TempFile("", "rungp-*.env")
+	tmpf, err := os.CreateTemp("", "rungp-*.env")
 	if err != nil {
 		return err
 	}
@@ -207,7 +206,7 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 	defer os.Remove(tmpf.Name())
 
 	if opts.SSHPublicKey != "" {
-		tmpf, err := ioutil.TempFile("", "rungp-*.pub")
+		tmpf, err := os.CreateTemp("", "rungp-*.pub")
 		if err != nil {
 			return err
 		}
