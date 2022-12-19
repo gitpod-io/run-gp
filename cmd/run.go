@@ -33,8 +33,9 @@ var runCmd = &cobra.Command{
 			uiMode = console.UIModeDaemon
 		}
 		log, done, err := console.NewBubbleTeaUI(console.BubbleUIOpts{
-			UIMode:  uiMode,
-			Verbose: rootOpts.Verbose,
+			UIMode:     uiMode,
+			Verbose:    rootOpts.Verbose,
+			WithBanner: true,
 		})
 		if err != nil {
 			return err

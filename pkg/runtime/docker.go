@@ -17,6 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime/assets"
@@ -45,11 +48,6 @@ func (dr docker) BuildImage(ctx context.Context, ref string, cfg *gitpod.GitpodC
 			telemetry.RecordWorkspaceFailure(telemetry.GetGitRemoteOriginURI(dr.Workdir), "build", dr.Command)
 		}
 	}()
-
-	logs := opts.Logs
-	if logs == nil {
-		logs = console.DiscardLogs
-	}
 
 	actualAssets := opts.Assets
 	if actualAssets == nil {
@@ -82,28 +80,24 @@ func (dr docker) BuildImage(ctx context.Context, ref string, cfg *gitpod.GitpodC
 		return fmt.Errorf("unsupported image: %v", img)
 	}
 
-	df := baseimage + `
-
-	USER root
-	RUN rm /usr/bin/gp-vncsession || true
-	RUN mkdir -p /workspace && \
-		chown -R 33333:33333 /workspace
-	`
+	df := baseimage
 	if actualAssets != nil {
 		df += strings.Join(assetEnvVars(actualAssets.EnvVars()), "\n")
 	}
 
-	fmt.Fprintf(logs, "\nDockerfile:%s\n", df)
+	cmd := exec.Command(dr.Command, "build", "-t", ref, "--progress=tty", ".")
+	cmd.Dir = tmpdir
+
+	logs := opts.Logs
+	if logs == nil {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	err = ioutil.WriteFile(filepath.Join(tmpdir, "Dockerfile"), []byte(df), 0644)
 	if err != nil {
 		return err
 	}
-
-	cmd := exec.Command(dr.Command, "build", "-t", ref, ".")
-	cmd.Dir = tmpdir
-	cmd.Stdout = logs
-	cmd.Stderr = logs
 
 	go func() {
 		<-ctx.Done()
@@ -176,10 +170,11 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		"--rm",
 		"--user", "root",
 		"--privileged",
-		"-v", fmt.Sprintf("%s:%s", dr.Workdir, filepath.Join("/workspace", cfg.CheckoutLocation)),
+		"-v", fmt.Sprintf("%s:%s", "/workspace", "/workspace"), // TODO: aps.asWorkpacePath(), "/workspace"
 		"-v", fmt.Sprintf("%s:%s", aps.IDEPath(), "/ide"),
 		"-v", fmt.Sprintf("%s:%s", aps.Supervisor(), "/.supervisor"),
 		"-v", fmt.Sprintf("%s:%s", aps.SupervisorConfig(), "/.supervisor/supervisor-config.json"),
+		"--label", "rungp=true",
 		"--name", name,
 	}
 
@@ -220,8 +215,8 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		"GITPOD_TASKS":                   string(tasks),
 		"GITPOD_HEADLESS":                "false",
 		"GITPOD_HOST":                    "gitpod.local",
-		"THEIA_SUPERVISOR_TOKENS":        `{"token": "invalid","kind": "gitpod","host": "gitpod.local","scope": [],"expiryDate": ` + time.Now().Format(time.RFC3339) + `,"reuse": 2}`,
-		"VSX_REGISTRY_URL":               "https://https://open-vsx.org/",
+		"THEIA_SUPERVISOR_TOKENS":        "",
+		"VSX_REGISTRY_URL":               "http://open-vsx.gitpod.io",
 	}
 	tmpf, err := ioutil.TempFile("", "rungp-*.env")
 	if err != nil {
@@ -264,11 +259,11 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 
 	go func() {
 		<-ctx.Done()
+		exec.Command(dr.Command, "kill", name).CombinedOutput()
+
 		if cmd.Process != nil {
 			cmd.Process.Kill()
 		}
-
-		exec.Command(dr.Command, "kill", name).CombinedOutput()
 
 		if err != nil && telemetry.Enabled() {
 			telemetry.RecordWorkspaceFailure(telemetry.GetGitRemoteOriginURI(dr.Workdir), "start", dr.Command)
@@ -276,4 +271,43 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 	}()
 
 	return cmd.Run()
+}
+
+// Create a new runtime client
+func (dr docker) NewClient() (*client.Client, error) {
+	client, err := client.NewEnvClient()
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+// Stop and remove a container
+func (dr docker) TerminateExistingRunGPContainer(client *client.Client, ctx context.Context) error {
+	filters := filters.NewArgs()
+	filters.Add("label", "rungp")
+
+	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
+		Filters: filters,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, container := range containers {
+		if err := client.ContainerStop(ctx, container.ID, nil); err != nil {
+			return err
+		}
+
+		removeOptions := types.ContainerRemoveOptions{
+			RemoveVolumes: true,
+			Force:         true,
+		}
+
+		if err := client.ContainerRemove(ctx, container.ID, removeOptions); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

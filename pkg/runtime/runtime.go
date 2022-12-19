@@ -10,6 +10,7 @@ import (
 	"io"
 	"os/exec"
 
+	"github.com/docker/docker/client"
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime/assets"
@@ -63,6 +64,8 @@ type RuntimeBuilder interface {
 
 type Runtime interface {
 	StartWorkspace(ctx context.Context, imageRef string, cfg *gitpod.GitpodConfig, opts StartOpts) error
+	NewClient() (*client.Client, error)
+	TerminateExistingRunGPContainer(*client.Client, context.Context) error
 }
 
 type StartOpts struct {

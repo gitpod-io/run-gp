@@ -75,8 +75,9 @@ func (c ConsoleLog) SetWorkspaceAccess(info WorkspaceAccess) {
 }
 
 type WorkspaceAccess struct {
-	URL     string
-	SSHPort int
+	URL        string
+	SSHCommand string
+	SSHPort    int
 }
 
 // StartPhase implements Log

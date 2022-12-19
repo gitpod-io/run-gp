@@ -28,11 +28,22 @@ const (
 	UIModeAuto UIMode = iota
 	UIModeDaemon
 	UIModeFancy
+	UIModePlain
 )
 
 type BubbleUIOpts struct {
-	UIMode  UIMode
-	Verbose bool
+	UIMode     UIMode
+	Verbose    bool
+	WithBanner bool
+}
+
+type PlainFormatter struct{}
+
+func (f *PlainFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	output := fmt.Sprintf("%s", entry.Message)
+	serialized := []byte(output)
+
+	return append(serialized, '\n'), nil
 }
 
 func NewBubbleTeaUI(opts BubbleUIOpts) (log *BubbleTeaUI, done <-chan struct{}, err error) {
@@ -51,13 +62,16 @@ func NewBubbleTeaUI(opts BubbleUIOpts) (log *BubbleTeaUI, done <-chan struct{}, 
 		teaopts = []tea.ProgramOption{tea.WithoutRenderer()}
 	case UIModeFancy:
 		logrus.SetOutput(ioutil.Discard)
+	case UIModePlain:
+		teaopts = []tea.ProgramOption{tea.WithoutRenderer()}
+		logrus.SetFormatter(new(PlainFormatter))
 	}
 	if opts.Verbose {
 		logrus.SetLevel(logrus.DebugLevel)
 		logrus.SetOutput(os.Stdout)
 	}
 
-	m := newUIModel()
+	m := newUIModel(opts)
 	p := tea.NewProgram(m, teaopts...)
 	go func() {
 		p.Start()
@@ -194,11 +208,11 @@ type msgSetWorkspaceAccess WorkspaceAccess
 var _ Log = &BubbleTeaUI{}
 
 type uiModel struct {
+	withBanner   bool
 	spinner      spinner.Model
 	phases       []uiPhase
 	currentPhase string
-
-	warnings []string
+	warnings     []string
 
 	workspaceAccess *WorkspaceAccess
 
@@ -213,13 +227,14 @@ type uiPhase struct {
 	Failure  string
 }
 
-func newUIModel() uiModel {
+func newUIModel(opts BubbleUIOpts) uiModel {
 	sp := spinner.New()
 	sp.Spinner = spinner.Points
 	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff8a00"))
 	return uiModel{
-		spinner: sp,
-		done:    make(chan struct{}),
+		withBanner: opts.WithBanner,
+		spinner:    sp,
+		done:       make(chan struct{}),
 	}
 }
 
@@ -254,7 +269,13 @@ func (m uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgSetWorkspaceAccess:
 		v := WorkspaceAccess(msg)
 		m.workspaceAccess = &v
-		logrus.WithField("SSH port", v.SSHPort).WithField("URL", v.URL).Infof("workspace is available")
+		accessLog := logrus.WithField("URL", v.URL)
+		if v.SSHPort != 0 {
+			accessLog = accessLog.WithField("SSH port", v.SSHPort)
+		} else if v.SSHCommand != "" {
+			accessLog = accessLog.WithField("SSH", v.SSHCommand)
+		}
+		accessLog.Infof("workspace is available")
 	case msgDiscardLogs:
 		m.logs = nil
 	case msgWarning:
@@ -294,14 +315,16 @@ var (
 func (m uiModel) View() string {
 	var s string
 
-	lines := strings.Split(banner, "\n")
-	start, _ := pterm.NewRGBFromHEX("#ff8a00")
-	end, _ := pterm.NewRGBFromHEX("#ffbe5c")
-	for _, line := range lines {
-		for i := range line {
-			s += start.Fade(0, float32(len(line)), float32(i), end).Sprint(line[i : i+1])
+	if m.withBanner {
+		lines := strings.Split(banner, "\n")
+		start, _ := pterm.NewRGBFromHEX("#ff8a00")
+		end, _ := pterm.NewRGBFromHEX("#ffbe5c")
+		for _, line := range lines {
+			for i := range line {
+				s += start.Fade(0, float32(len(line)), float32(i), end).Sprint(line[i : i+1])
+			}
+			s += "\n"
 		}
-		s += "\n"
 	}
 
 	if len(m.warnings) > 0 {
@@ -313,7 +336,12 @@ func (m uiModel) View() string {
 
 	if m.workspaceAccess != nil {
 		s += styleWorkspaceURLDesc("Open the workspace at: ") + styleWorkspaceURL(m.workspaceAccess.URL) + "\n"
-		s += styleWorkspaceURLDesc("            SSH using: ") + fmt.Sprintf("ssh -p %d gitpod@localhost", m.workspaceAccess.SSHPort) + "\n"
+		if m.workspaceAccess.SSHCommand != "" {
+			s += styleWorkspaceURLDesc("            SSH using: ") + m.workspaceAccess.SSHCommand + "\n"
+		} else if m.workspaceAccess.SSHPort != 0 {
+			s += styleWorkspaceURLDesc("            SSH using: ") + fmt.Sprintf("ssh -p %d gitpod@localhost", m.workspaceAccess.SSHPort) + "\n"
+		}
+
 		s += "\n"
 	}
 

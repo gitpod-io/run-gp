@@ -18,9 +18,11 @@ var debugUICmd = &cobra.Command{
 	Short: "runs the bubble UI",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lg, _, err := console.NewBubbleTeaUI(console.BubbleUIOpts{
-			UIMode:  console.UIModeFancy,
-			Verbose: false,
+			UIMode:     console.UIModeAuto,
+			Verbose:    false,
+			WithBanner: true,
 		})
+
 		if err != nil {
 			return err
 		}
@@ -51,4 +53,6 @@ var debugUICmd = &cobra.Command{
 
 func init() {
 	debugCmd.AddCommand(debugUICmd)
+	debugUICmd.PersistentFlags().BoolVarP(&rootOpts.Verbose, "verbose", "v", false, "verbose output")
+	debugUICmd.PersistentFlags().StringVarP(&rootOpts.Output, "output", "u", "fancy", "UI mode (fancy, json, plain)")
 }
