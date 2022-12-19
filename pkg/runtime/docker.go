@@ -111,6 +111,7 @@ func (dr docker) BuildImage(ctx context.Context, logs io.WriteCloser, ref string
 	cmd.Dir = tmpdir
 	cmd.Stdout = logs
 	cmd.Stderr = logs
+	fmt.Fprintf(logs, "\nBuildImage running %+v in %s\n", cmd.Args, cmd.Dir)
 
 	go func() {
 		<-ctx.Done()
@@ -147,7 +148,7 @@ func assetEnvVars(input []string) []string {
 	return res
 }
 
-// Startworkspace actually runs a workspace using a previously built image
+// StartWorkspace actually runs a workspace using a previously built image
 func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg *gitpod.GitpodConfig, opts StartOpts) (err error) {
 	var logs io.Writer
 	if opts.Logs != nil {
@@ -164,8 +165,12 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		return fmt.Errorf("missing workspace location")
 	}
 
+	/// myPorts maps from an allocated host port to a description of why
+	myPorts := make(map[int]string, 1)
+
 	name := fmt.Sprintf("rungp-%d", time.Now().UnixNano())
 	args := []string{"run", "--rm", "--user", "root", "--privileged", "-p", fmt.Sprintf("%d:22999", opts.IDEPort), "-v", fmt.Sprintf("%s:%s", dr.Workdir, filepath.Join("/workspace", cfg.CheckoutLocation)), "--name", name}
+	myPorts[opts.IDEPort] = "opts.IDEPort"
 
 	if (runtime.GOOS == "darwin" || runtime.GOOS == "linux") && dr.Command == "docker" {
 		args = append(args, "-v", "/var/run/docker.sock:/var/run/docker.sock")
@@ -212,12 +217,30 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		defer os.Remove(tmpf.Name())
 	}
 	if opts.SSHPort > 0 {
-		args = append(args, "-p", fmt.Sprintf("%d:23001", opts.SSHPort))
+		sshPort := opts.SSHPort
+		if _, havePort := myPorts[sshPort]; havePort {
+			return fmt.Errorf("port collision with opts.SSHPort on %d with %s", sshPort, myPorts[sshPort])
+		}
+		myPorts[sshPort] = "opts.SSHPort"
+		args = append(args, "-p", fmt.Sprintf("%d:23001", sshPort))
 	}
 
 	if !opts.NoPortForwarding {
 		for _, p := range cfg.Ports {
-			args = append(args, "-p", fmt.Sprintf("%d:%d", p.Port.(int)+opts.PortOffset, p.Port))
+			thePort, portOk := p.Port.(int)
+			if !portOk {
+				return fmt.Errorf("expected p.Port to be int but is %+v", p.Port)
+			}
+			hostPort := thePort + opts.PortOffset
+			if _, havePort := myPorts[hostPort]; havePort {
+				origMsg := ""
+				if thePort != hostPort {
+					origMsg = fmt.Sprintf(" (originally %d)", thePort)
+				}
+				return fmt.Errorf("PortForwarding collision on %d%s with %s", hostPort, origMsg, myPorts[hostPort])
+			}
+			args = append(args, "-p", fmt.Sprintf("%d:%d", hostPort, p.Port))
+			myPorts[hostPort] = fmt.Sprintf("port-forward %d + %d", thePort, opts.PortOffset)
 		}
 	}
 
