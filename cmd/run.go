@@ -124,6 +124,7 @@ var runCmd = &cobra.Command{
 			opts.SSHPublicKey = publicSSHKey
 			err := runtime.StartWorkspace(ctx, ref, cfg, opts)
 			if err != nil {
+				log.Warnf("unable to Start Workspace: %+v", err)
 				return
 			}
 			runLogs.Discard()
