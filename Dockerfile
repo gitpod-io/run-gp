@@ -11,6 +11,6 @@ FROM scratch
 # ensures right permissions for /ide
 COPY --from=base_builder --chown=33333:33333 /ide/ /ide/
 COPY --chown=33333:33333 run-gp /ide/run-gp
-COPY --chown=33333:33333 bin/gp-run.sh /ide/bin/run-gp-cli/gp-run
+COPY --chown=33333:33333 resources/bin/gp-run.sh /ide/bin/run-gp-cli/gp-run
 
 ENV GITPOD_ENV_APPEND_PATH=/ide/bin/run-gp-cli:
