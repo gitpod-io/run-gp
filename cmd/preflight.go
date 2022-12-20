@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
@@ -83,6 +84,8 @@ var preflightCmd = &cobra.Command{
 			if !preflightOpts.AllCommands {
 				envVars = append(envVars, "GITPOD_HEADLESS=true")
 			}
+
+			envVars = append(envVars, fmt.Sprintf("SUPERVISOR_ADDR=localhost:%d", idePort))
 
 			runLogs := console.Observe(ctx, log, console.WorkspaceAccessInfo{
 				WorkspaceFolder: filepath.Join("/workspace", cfg.WorkspaceLocation),
