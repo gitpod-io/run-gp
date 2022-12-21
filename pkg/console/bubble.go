@@ -28,11 +28,21 @@ const (
 	UIModeAuto UIMode = iota
 	UIModeDaemon
 	UIModeFancy
+	UIModePlain
 )
 
 type BubbleUIOpts struct {
 	UIMode  UIMode
 	Verbose bool
+}
+
+type PlainFormatter struct{}
+
+func (f *PlainFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	output := fmt.Sprintf("%s", entry.Message)
+	serialized := []byte(output)
+
+	return append(serialized, '\n'), nil
 }
 
 func NewBubbleTeaUI(opts BubbleUIOpts) (log *BubbleTeaUI, done <-chan struct{}, err error) {
@@ -51,6 +61,9 @@ func NewBubbleTeaUI(opts BubbleUIOpts) (log *BubbleTeaUI, done <-chan struct{}, 
 		teaopts = []tea.ProgramOption{tea.WithoutRenderer()}
 	case UIModeFancy:
 		logrus.SetOutput(ioutil.Discard)
+	case UIModePlain:
+		teaopts = []tea.ProgramOption{tea.WithoutRenderer()}
+		logrus.SetFormatter(new(PlainFormatter))
 	}
 	if opts.Verbose {
 		logrus.SetLevel(logrus.DebugLevel)

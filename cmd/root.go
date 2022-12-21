@@ -59,10 +59,17 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+var MapOutputToUiMode = map[string]console.UIMode{
+	"fancy":  console.UIModeFancy,
+	"daemon": console.UIModeDaemon,
+	"plain":  console.UIModePlain,
+}
+
 var rootOpts struct {
 	Workdir          string
 	GitpodYamlFN     string
 	Verbose          bool
+	Output           string
 	DisableTelemetry bool
 	Runtime          string
 

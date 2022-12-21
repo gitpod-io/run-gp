@@ -19,9 +19,9 @@ var preflightCmd = &cobra.Command{
 	Short: "Just builds the workspace image and runs the tasks as if the workspace",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		uiMode := console.UIModeAuto
-		if rootOpts.Verbose {
-			uiMode = console.UIModeDaemon
+		uiMode := console.UIModePlain
+		if rootOpts.Output != "" {
+			uiMode = MapOutputToUiMode[rootOpts.Output]
 		}
 		log, done, err := console.NewBubbleTeaUI(console.BubbleUIOpts{
 			UIMode:  uiMode,
@@ -129,4 +129,5 @@ var preflightOpts struct {
 func init() {
 	rootCmd.AddCommand(preflightCmd)
 	preflightCmd.Flags().BoolVar(&preflightOpts.AllCommands, "all-commands", true, "run all commands - note that run-gp will not exit once they're done")
+	preflightCmd.PersistentFlags().StringVarP(&rootOpts.Output, "output", "u", "plain", "UI mode (fancy, json, plain)")
 }
