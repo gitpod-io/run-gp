@@ -23,9 +23,13 @@ var preflightCmd = &cobra.Command{
 	Short: "Just builds the workspace image and runs the tasks as if the workspace",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
+		uiMode := console.UIModePlain
+		log, done, err := console.NewBubbleTeaUI(console.BubbleUIOpts{
+			UIMode:  uiMode,
+			Verbose: rootOpts.Verbose,
+		})
 
-		log := console.NewConsoleLog(os.Stdout)
-		console.Init(log)
+		console.Init(console.NewConsoleLog(os.Stdout))
 
 		asts := assets.WithinGitpodWorkspace
 		if !asts.Available() {
@@ -102,6 +106,12 @@ var preflightCmd = &cobra.Command{
 		select {
 		case <-tasksDone:
 			cancel()
+			log.Quit()
+		case <-done:
+			cancel()
+			<-shutdown
+		case <-shutdown:
+			log.Quit()
 		}
 
 		return nil
