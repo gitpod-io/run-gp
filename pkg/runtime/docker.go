@@ -77,14 +77,7 @@ func (dr docker) BuildImage(ctx context.Context, ref string, cfg *gitpod.GitpodC
 		return fmt.Errorf("unsupported image: %v", img)
 	}
 
-	// TODO skip this for preflight
-	df := baseimage + `
-
-	USER root
-	RUN rm /usr/bin/gp-vncsession || true
-	RUN mkdir -p /workspace && \
-		chown -R 33333:33333 /workspace
-	`
+	df := baseimage
 	if actualAssets != nil {
 		df += strings.Join(assetEnvVars(actualAssets.EnvVars()), "\n")
 	}
@@ -174,7 +167,7 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		"--rm",
 		"--user", "root",
 		"--privileged",
-		"-v", fmt.Sprintf("%s:%s", dr.Workdir, filepath.Join("/workspace", cfg.CheckoutLocation)),
+		"-v", fmt.Sprintf("%s:%s", "/workspace", "/workspace"), // TODO:
 		"-v", fmt.Sprintf("%s:%s", aps.IDEPath(), "/ide"),
 		"-v", fmt.Sprintf("%s:%s", aps.Supervisor(), "/.supervisor"),
 		"-v", fmt.Sprintf("%s:%s", aps.SupervisorConfig(), "/.supervisor/supervisor-config.json"),
