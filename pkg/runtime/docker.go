@@ -46,11 +46,6 @@ func (dr docker) BuildImage(ctx context.Context, ref string, cfg *gitpod.GitpodC
 		}
 	}()
 
-	logs := opts.Logs
-	if logs == nil {
-		logs = console.DiscardLogs
-	}
-
 	actualAssets := opts.Assets
 	if actualAssets == nil {
 		actualAssets = assets.Embedded
@@ -82,6 +77,7 @@ func (dr docker) BuildImage(ctx context.Context, ref string, cfg *gitpod.GitpodC
 		return fmt.Errorf("unsupported image: %v", img)
 	}
 
+	// TODO skip this for preflight
 	df := baseimage + `
 
 	USER root
@@ -93,17 +89,19 @@ func (dr docker) BuildImage(ctx context.Context, ref string, cfg *gitpod.GitpodC
 		df += strings.Join(assetEnvVars(actualAssets.EnvVars()), "\n")
 	}
 
-	fmt.Fprintf(logs, "\nDockerfile:%s\n", df)
+	cmd := exec.Command(dr.Command, "build", "-t", ref, "--progress=tty", ".")
+	cmd.Dir = tmpdir
+
+	logs := opts.Logs
+	if logs == nil {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	err = ioutil.WriteFile(filepath.Join(tmpdir, "Dockerfile"), []byte(df), 0644)
 	if err != nil {
 		return err
 	}
-
-	cmd := exec.Command(dr.Command, "build", "-t", ref, ".")
-	cmd.Dir = tmpdir
-	cmd.Stdout = logs
-	cmd.Stderr = logs
 
 	go func() {
 		<-ctx.Done()

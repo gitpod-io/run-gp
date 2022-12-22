@@ -6,6 +6,8 @@ package cmd
 
 import (
 	"context"
+	"io"
+	"os"
 	"path/filepath"
 
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
@@ -14,22 +16,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type noopWriteCloser struct{ io.Writer }
+
 var preflightCmd = &cobra.Command{
 	Use:   "preflight",
 	Short: "Just builds the workspace image and runs the tasks as if the workspace",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		uiMode := console.UIModePlain
-		if rootOpts.Output != "" {
-			uiMode = MapOutputToUiMode[rootOpts.Output]
-		}
-		log, done, err := console.NewBubbleTeaUI(console.BubbleUIOpts{
-			UIMode:  uiMode,
-			Verbose: rootOpts.Verbose,
-		})
-		if err != nil {
-			return err
-		}
+
+		log := console.NewConsoleLog(os.Stdout)
 		console.Init(log)
 
 		asts := assets.WithinGitpodWorkspace
@@ -67,16 +62,13 @@ var preflightCmd = &cobra.Command{
 
 			buildingPhase := log.StartPhase("[building]", "workspace image")
 			ref := filepath.Join("workspace-image:latest")
-			bldLog := log.Writer()
 			err = rt.BuildImage(ctx, ref, cfg, runtime.BuildOpts{
-				Logs:   bldLog,
 				Assets: asts,
 			})
 			if err != nil {
 				buildingPhase.Failure(err.Error())
 				return
 			}
-			bldLog.Discard()
 			buildingPhase.Success()
 
 			var envVars []string
@@ -110,12 +102,6 @@ var preflightCmd = &cobra.Command{
 		select {
 		case <-tasksDone:
 			cancel()
-			log.Quit()
-		case <-done:
-			cancel()
-			<-shutdown
-		case <-shutdown:
-			log.Quit()
 		}
 
 		return nil
