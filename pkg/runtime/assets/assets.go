@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/xerrors"
 )
 
 //go:generate sh ../../../hack/update-assets.sh
@@ -49,33 +51,63 @@ type AssetPaths interface {
 	Close() error
 }
 
-type NoopIDE struct {
+type DebugIDE struct {
 	Assets         Assets
 	SupervisorPort int
 }
 
 // returns the image environment variables embedded which would come from the IDE and supervisor image
-func (np NoopIDE) EnvVars() []string { return nil }
+func (np DebugIDE) EnvVars() []string { return nil }
+
+type SupervisorConfig struct {
+	IDEConfigLocation        string `json:"ideConfigLocation"`
+	DesktopIDEConfigLocation string `json:"desktopIdeConfigLocation"`
+	FrontendLocation         string `json:"frontendLocation"`
+	APIEndpointPort          int    `json:"apiEndpointPort"`
+	HostAPIEndpointPort      *int   `json:"hostAPIEndpointPort,omitempty"`
+	SSHPort                  int    `json:"sshPort"`
+}
 
 // Access makes the assets available to be mounted into the container
-func (np NoopIDE) Access() (AssetPaths, error) {
+func (np DebugIDE) Access() (AssetPaths, error) {
 	actual, err := np.Assets.Access()
 	if err != nil {
 		return nil, err
 	}
 
-	idePath, err := np.prepIDE()
+	var supervisorConfig *SupervisorConfig
+	supervisorConfigContent, err := os.ReadFile(actual.SupervisorConfig())
+	if err == nil {
+		err = json.Unmarshal(supervisorConfigContent, &supervisorConfig)
+	}
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to parse supervisor config: %v", err)
+	}
+	hostAPIEndpointPort := supervisorConfig.APIEndpointPort
+	supervisorConfig.HostAPIEndpointPort = &hostAPIEndpointPort
+	supervisorConfig.APIEndpointPort = np.SupervisorPort
+	supervisorConfigContent, err = json.Marshal(supervisorConfig)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to stringify supervisor config: %v", err)
+	}
+
+	tmpdir, err := os.MkdirTemp("", "rungp-noopide-*")
+	if err != nil {
+		return nil, xerrors.Errorf("failed to prepare supervisor config: %v", err)
+	}
+	supervisorConfigPath := filepath.Join(tmpdir, "supervisor-config.json")
+	err = ioutil.WriteFile(supervisorConfigPath, supervisorConfigContent, 0644)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to prepare supervisor config: %v", err)
 	}
 
 	return compositeAssetPaths{
 		supervisor:       actual.Supervisor(),
-		supervisorConfig: filepath.Join(idePath, "supervisor-config.json"),
-		idePath:          idePath,
+		supervisorConfig: supervisorConfigPath,
+		idePath:          actual.IDEPath(),
 		closer: []io.Closer{
 			actual,
-			// closerFunc(func() error { return os.RemoveAll(idePath) }),
+			closerFunc(func() error { return os.RemoveAll(tmpdir) }),
 		},
 	}, nil
 }
@@ -86,35 +118,8 @@ func (c closerFunc) Close() error {
 	return c()
 }
 
-func (np NoopIDE) prepIDE() (path string, err error) {
-	tmpdir, err := os.MkdirTemp("", "rungp-noopide-*")
-	if err != nil {
-		return "", err
-	}
-
-	var errors []error
-	errors = append(errors, ioutil.WriteFile(filepath.Join(tmpdir, "startup.sh"), []byte("#!/bin/sh\nsleep infinity\n"), 0644))
-	errors = append(errors, ioutil.WriteFile(filepath.Join(tmpdir, "supervisor-ide-config.json"), []byte(`{"entrypoint": "/ide/startup.sh"}`), 0644))
-	errors = append(errors, ioutil.WriteFile(filepath.Join(tmpdir, "supervisor-config.json"), []byte(fmt.Sprintf(`
-	  {
-		"ideConfigLocation": "/ide/supervisor-ide-config.json",
-		"desktopIdeConfigLocation": "/ide-desktop/supervisor-ide-config.json",
-		"frontendLocation": "/.supervisor/frontend/",
-		"apiEndpointPort": %d,
-		"sshPort": 23001
-	  }
-	`, np.SupervisorPort)), 0644))
-	for _, err := range errors {
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return tmpdir, nil
-}
-
 // Available returns true if this asset set is available
-func (np NoopIDE) Available() bool {
+func (np DebugIDE) Available() bool {
 	return np.Assets.Available()
 }
 

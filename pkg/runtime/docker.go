@@ -167,7 +167,7 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		"--rm",
 		"--user", "root",
 		"--privileged",
-		"-v", fmt.Sprintf("%s:%s", "/workspace", "/workspace"), // TODO:
+		"-v", fmt.Sprintf("%s:%s", "/workspace", "/workspace"), // TODO: aps.asWorkpacePath(), "/workspace"
 		"-v", fmt.Sprintf("%s:%s", aps.IDEPath(), "/ide"),
 		"-v", fmt.Sprintf("%s:%s", aps.Supervisor(), "/.supervisor"),
 		"-v", fmt.Sprintf("%s:%s", aps.SupervisorConfig(), "/.supervisor/supervisor-config.json"),
@@ -211,8 +211,8 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		"GITPOD_TASKS":                   string(tasks),
 		"GITPOD_HEADLESS":                "false",
 		"GITPOD_HOST":                    "gitpod.local",
-		"THEIA_SUPERVISOR_TOKENS":        `{"token": "invalid","kind": "gitpod","host": "gitpod.local","scope": [],"expiryDate": ` + time.Now().Format(time.RFC3339) + `,"reuse": 2}`,
-		"VSX_REGISTRY_URL":               "https://https://open-vsx.org/",
+		"THEIA_SUPERVISOR_TOKENS":        "",
+		"VSX_REGISTRY_URL":               "http://open-vsx.gitpod.io",
 	}
 	tmpf, err := ioutil.TempFile("", "rungp-*.env")
 	if err != nil {

@@ -9,4 +9,4 @@ ROOT="$(dirname "$(dirname "$(readlink -f "$0")")")"
 
 sh $ROOT/scripts/build.sh
 docker login --username "$DOCKER_HUB_USERNAME" --password "$DOCKER_HUB_PASSWORD"
-docker push gitpod/gp-run:latest
+docker push gitpod/gp-run:ak-test

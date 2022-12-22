@@ -8,4 +8,4 @@ set -e
 ROOT="$(dirname "$(dirname "$(readlink -f "$0")")")"
 
 go build -o run-gp .
-docker build -t gitpod/gp-run:latest $ROOT
+docker build -t gitpod/gp-run:ak-test $ROOT

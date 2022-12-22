@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -36,8 +37,11 @@ var preflightCmd = &cobra.Command{
 			asts = assets.Embedded
 		}
 
-		idePort := 25000
-		asts = assets.NoopIDE{Assets: asts, SupervisorPort: idePort}
+		supervisorPort := 24999
+		asts = assets.DebugIDE{
+			Assets:         asts,
+			SupervisorPort: supervisorPort,
+		}
 
 		cfg, err := getGitpodYaml()
 		if err != nil {
@@ -79,12 +83,13 @@ var preflightCmd = &cobra.Command{
 			if !preflightOpts.AllCommands {
 				envVars = append(envVars, "GITPOD_HEADLESS=true")
 			}
+			envVars = append(envVars, fmt.Sprintf("GITPOD_THEIA_PORT=%d", supervisorPort+1))
 
 			runLogs := console.Observe(ctx, log, console.WorkspaceAccessInfo{
 				WorkspaceFolder: filepath.Join("/workspace", cfg.WorkspaceLocation),
 				HTTPPort:        0,
 				SSHPort:         0,
-				SupervisorPort:  idePort,
+				SupervisorPort:  supervisorPort,
 			}, console.ObserveOpts{
 				ObserveTasks: true,
 				OnTasksDone: func() {
@@ -98,6 +103,7 @@ var preflightCmd = &cobra.Command{
 				AdditionalEnvVars: envVars,
 			})
 			if err != nil {
+				log.Infof("Failed to start: %v", err)
 				return
 			}
 			runLogs.Discard()
