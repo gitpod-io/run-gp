@@ -32,8 +32,9 @@ const (
 )
 
 type BubbleUIOpts struct {
-	UIMode  UIMode
-	Verbose bool
+	UIMode     UIMode
+	Verbose    bool
+	WithBanner bool
 }
 
 type PlainFormatter struct{}
@@ -70,7 +71,7 @@ func NewBubbleTeaUI(opts BubbleUIOpts) (log *BubbleTeaUI, done <-chan struct{}, 
 		logrus.SetOutput(os.Stdout)
 	}
 
-	m := newUIModel()
+	m := newUIModel(opts)
 	p := tea.NewProgram(m, teaopts...)
 	go func() {
 		p.Start()
@@ -207,11 +208,11 @@ type msgSetWorkspaceAccess WorkspaceAccess
 var _ Log = &BubbleTeaUI{}
 
 type uiModel struct {
+	withBanner   bool
 	spinner      spinner.Model
 	phases       []uiPhase
 	currentPhase string
-
-	warnings []string
+	warnings     []string
 
 	workspaceAccess *WorkspaceAccess
 
@@ -226,13 +227,14 @@ type uiPhase struct {
 	Failure  string
 }
 
-func newUIModel() uiModel {
+func newUIModel(opts BubbleUIOpts) uiModel {
 	sp := spinner.New()
 	sp.Spinner = spinner.Points
 	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff8a00"))
 	return uiModel{
-		spinner: sp,
-		done:    make(chan struct{}),
+		withBanner: opts.WithBanner,
+		spinner:    sp,
+		done:       make(chan struct{}),
 	}
 }
 
@@ -307,14 +309,16 @@ var (
 func (m uiModel) View() string {
 	var s string
 
-	lines := strings.Split(banner, "\n")
-	start, _ := pterm.NewRGBFromHEX("#ff8a00")
-	end, _ := pterm.NewRGBFromHEX("#ffbe5c")
-	for _, line := range lines {
-		for i := range line {
-			s += start.Fade(0, float32(len(line)), float32(i), end).Sprint(line[i : i+1])
+	if m.withBanner {
+		lines := strings.Split(banner, "\n")
+		start, _ := pterm.NewRGBFromHEX("#ff8a00")
+		end, _ := pterm.NewRGBFromHEX("#ffbe5c")
+		for _, line := range lines {
+			for i := range line {
+				s += start.Fade(0, float32(len(line)), float32(i), end).Sprint(line[i : i+1])
+			}
+			s += "\n"
 		}
-		s += "\n"
 	}
 
 	if len(m.warnings) > 0 {

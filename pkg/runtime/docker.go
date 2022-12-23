@@ -17,6 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime/assets"
@@ -171,6 +174,7 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 		"-v", fmt.Sprintf("%s:%s", aps.IDEPath(), "/ide"),
 		"-v", fmt.Sprintf("%s:%s", aps.Supervisor(), "/.supervisor"),
 		"-v", fmt.Sprintf("%s:%s", aps.SupervisorConfig(), "/.supervisor/supervisor-config.json"),
+		"--label", "rungp=true",
 		"--name", name,
 	}
 
@@ -267,4 +271,43 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 	}()
 
 	return cmd.Run()
+}
+
+// Create a new runtime client
+func (dr docker) NewClient() (*client.Client, error) {
+	client, err := client.NewEnvClient()
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+// Stop and remove a container
+func (dr docker) TerminateExistingRunGPContainer(client *client.Client, ctx context.Context) error {
+	filters := filters.NewArgs()
+	filters.Add("label", "rungp")
+
+	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
+		Filters: filters,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, container := range containers {
+		if err := client.ContainerStop(ctx, container.ID, nil); err != nil {
+			return err
+		}
+
+		removeOptions := types.ContainerRemoveOptions{
+			RemoveVolumes: true,
+			Force:         true,
+		}
+
+		if err := client.ContainerRemove(ctx, container.ID, removeOptions); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

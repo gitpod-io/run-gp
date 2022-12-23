@@ -27,10 +27,11 @@ var preflightCmd = &cobra.Command{
 	Short: "Just builds the workspace image and runs the tasks as if the workspace",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		uiMode := console.UIModePlain
+		uiMode := console.UIModeAuto
 		log, done, err := console.NewBubbleTeaUI(console.BubbleUIOpts{
-			UIMode:  uiMode,
-			Verbose: rootOpts.Verbose,
+			UIMode:     uiMode,
+			Verbose:    rootOpts.Verbose,
+			WithBanner: false,
 		})
 
 		console.Init(console.NewConsoleLog(os.Stdout))
@@ -66,21 +67,22 @@ var preflightCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
+		dockerClient, err := rt.NewClient()
+		if err != nil {
+			return err
+		}
+
+		rt.TerminateExistingRunGPContainer(dockerClient, ctx)
+
 		shutdown := make(chan struct{})
 		tasksDone := make(chan struct{})
 		go func() {
 			defer close(shutdown)
 
-			buildingPhase := log.StartPhase("[building]", "workspace image")
 			ref := filepath.Join("workspace-image:latest")
 			err = rt.BuildImage(ctx, ref, cfg, runtime.BuildOpts{
 				Assets: asts,
 			})
-			if err != nil {
-				buildingPhase.Failure(err.Error())
-				return
-			}
-			buildingPhase.Success()
 
 			var envVars []string
 			if !preflightOpts.AllCommands {
@@ -148,11 +150,14 @@ var preflightCmd = &cobra.Command{
 		case <-tasksDone:
 			cancel()
 			log.Quit()
+			rt.TerminateExistingRunGPContainer(dockerClient, ctx)
 		case <-done:
 			cancel()
+			rt.TerminateExistingRunGPContainer(dockerClient, ctx)
 			<-shutdown
 		case <-shutdown:
 			log.Quit()
+			rt.TerminateExistingRunGPContainer(dockerClient, ctx)
 		}
 
 		return nil

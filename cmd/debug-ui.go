@@ -18,8 +18,9 @@ var debugUICmd = &cobra.Command{
 	Short: "runs the bubble UI",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lg, _, err := console.NewBubbleTeaUI(console.BubbleUIOpts{
-			UIMode:  MapOutputToUiMode[rootOpts.Output],
-			Verbose: false,
+			UIMode:     console.UIModeAuto,
+			Verbose:    false,
+			WithBanner: true,
 		})
 
 		if err != nil {
