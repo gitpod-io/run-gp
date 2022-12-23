@@ -126,7 +126,7 @@ var preflightCmd = &cobra.Command{
 				SSHPort:         0,
 				SupervisorPort:  supervisorPort,
 			}, console.ObserveOpts{
-				ObserveTasks: true,
+				ObserveTasks: false,
 				OnTasksDone: func() {
 					close(tasksDone)
 				},
@@ -141,7 +141,7 @@ var preflightCmd = &cobra.Command{
 				log.Infof("Failed to start: %v", err)
 				return
 			}
-			// runLogs.Discard()
+			runLogs.Discard()
 		}()
 
 		select {
