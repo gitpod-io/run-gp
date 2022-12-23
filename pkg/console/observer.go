@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -18,6 +19,7 @@ import (
 )
 
 type WorkspaceAccessInfo struct {
+	WorkspaceURL    *url.URL
 	WorkspaceFolder string
 	HTTPPort        int
 	SSHPort         int
@@ -42,7 +44,6 @@ func Observe(ctx context.Context, log Log, access WorkspaceAccessInfo, opts Obse
 	go func() {
 		extensions := make(map[string]struct{})
 
-		var workspaceURL string
 		scanner := bufio.NewScanner(rr)
 		for scanner.Scan() {
 			var (
@@ -56,11 +57,16 @@ func Observe(ctx context.Context, log Log, access WorkspaceAccessInfo, opts Obse
 				resetPhase = true
 				failure = line
 			case strings.Contains(line, "Web UI available"):
-				prefix := "folder"
-				if strings.HasSuffix(access.WorkspaceFolder, ".code-workspace") {
-					prefix = "workspace"
+				var workspaceURL string
+				if access.WorkspaceURL == nil {
+					prefix := "folder"
+					if strings.HasSuffix(access.WorkspaceFolder, ".code-workspace") {
+						prefix = "workspace"
+					}
+					workspaceURL = fmt.Sprintf("http://localhost:%d/?%s=%s", access.HTTPPort, prefix, access.WorkspaceFolder)
+				} else {
+					workspaceURL = access.WorkspaceURL.String()
 				}
-				workspaceURL = fmt.Sprintf("http://localhost:%d/?%s=%s", access.HTTPPort, prefix, access.WorkspaceFolder)
 
 				phase = "running"
 				steady = fmt.Sprintf("workspace at %s", workspaceURL)

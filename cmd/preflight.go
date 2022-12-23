@@ -8,8 +8,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/gitpod-io/gitpod/run-gp/pkg/console"
 	"github.com/gitpod-io/gitpod/run-gp/pkg/runtime"
@@ -85,7 +88,18 @@ var preflightCmd = &cobra.Command{
 			}
 			envVars = append(envVars, fmt.Sprintf("GITPOD_THEIA_PORT=%d", supervisorPort+1))
 
+			urlCmd := exec.Command("gp", "url")
+			rawUrl, err := urlCmd.Output()
+			var workspaceURL *url.URL
+			if err == nil {
+				workspaceURL, err = url.Parse(strings.TrimSpace(string(rawUrl)))
+			}
+			if err == nil {
+				workspaceURL.Host = "debug-" + workspaceURL.Host
+			}
+
 			runLogs := console.Observe(ctx, log, console.WorkspaceAccessInfo{
+				WorkspaceURL:    workspaceURL,
 				WorkspaceFolder: filepath.Join("/workspace", cfg.WorkspaceLocation),
 				HTTPPort:        0,
 				SSHPort:         0,
@@ -96,7 +110,7 @@ var preflightCmd = &cobra.Command{
 					close(tasksDone)
 				},
 			})
-			err := rt.StartWorkspace(ctx, ref, cfg, runtime.StartOpts{
+			err = rt.StartWorkspace(ctx, ref, cfg, runtime.StartOpts{
 				Network:           runtime.HostNetwork{},
 				Logs:              runLogs,
 				Assets:            asts,
