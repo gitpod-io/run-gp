@@ -255,11 +255,11 @@ func (dr docker) StartWorkspace(ctx context.Context, workspaceImage string, cfg 
 
 	go func() {
 		<-ctx.Done()
+		exec.Command(dr.Command, "kill", name).CombinedOutput()
+
 		if cmd.Process != nil {
 			cmd.Process.Kill()
 		}
-
-		exec.Command(dr.Command, "kill", name).CombinedOutput()
 
 		if err != nil && telemetry.Enabled() {
 			telemetry.RecordWorkspaceFailure(telemetry.GetGitRemoteOriginURI(dr.Workdir), "start", dr.Command)
