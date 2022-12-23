@@ -141,7 +141,7 @@ var preflightCmd = &cobra.Command{
 				log.Infof("Failed to start: %v", err)
 				return
 			}
-			runLogs.Discard()
+			// runLogs.Discard()
 		}()
 
 		select {
